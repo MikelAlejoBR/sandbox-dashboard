@@ -114,6 +114,12 @@ async function initializeKeycloak(
   const authenticated = await keycloak.init({
     checkLoginIframe: false,
     onLoad: "login-required",
+    // Make sure that we are just using the origin and the path name for the
+    // redirect URI, to avoid appending any other problematic parameters:
+    //
+    // - https://access.redhat.com/security/cve/cve-2026-9689
+    // - https://access.redhat.com/security/cve/cve-2026-18963
+    redirectUri: `${window.location.origin}${window.location.pathname}`,
   });
 
   if (!authenticated) {

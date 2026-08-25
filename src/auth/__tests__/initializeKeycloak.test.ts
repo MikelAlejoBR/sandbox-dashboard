@@ -97,13 +97,33 @@ describe("initializeKeycloak", () => {
       });
     });
 
-    it("initializes Keycloak with login-required", async () => {
-      await initializeKeycloak(config);
-
-      expect(mockKeycloakInstance.init).toHaveBeenCalledWith({
-        checkLoginIframe: false,
-        onLoad: "login-required",
+    it("initializes Keycloak with login-required and a path-only redirect URI", async () => {
+      // Give it a dirty URL that should be vulnerable to the CVEs described
+      // in "initializeKeycloak.ts".
+      //
+      // The redirect URI should just have the origin and the path.
+      const originalLocation = window.location;
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: new URL(
+          "https://sandbox.redhat.com/activities?code=stolen&state=x&session_state=y",
+        ),
       });
+
+      try {
+        await initializeKeycloak(config);
+
+        expect(mockKeycloakInstance.init).toHaveBeenCalledWith({
+          checkLoginIframe: false,
+          onLoad: "login-required",
+          redirectUri: "https://sandbox.redhat.com/activities",
+        });
+      } finally {
+        Object.defineProperty(window, "location", {
+          configurable: true,
+          value: originalLocation,
+        });
+      }
     });
 
     it("returns the authenticated context value from token claims", async () => {
