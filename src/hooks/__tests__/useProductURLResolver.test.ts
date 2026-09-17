@@ -141,6 +141,43 @@ describe("useProductURLResolver", () => {
     });
   });
 
+  describe("custom resolver (RHDH resolveURL)", () => {
+    const rhdhProduct = products.find((p) => p.type === ProductType.RHDH)!;
+
+    it("derives the URL from consoleURL", () => {
+      const user: User = {
+        ...readyUserFixture,
+        consoleURL:
+          "https://console-openshift-console.apps.cluster1.example.com",
+      };
+      const { result } = renderResolver({ user });
+
+      expect(result.current.getProductURL(rhdhProduct)).toBe(
+        "https://backstage-developer-hub-rhdh-operator.apps.cluster1.example.com",
+      );
+    });
+
+    it("returns empty string when consoleURL is empty", () => {
+      const user: User = {
+        ...readyUserFixture,
+        consoleURL: "",
+      };
+      const { result } = renderResolver({ user });
+
+      expect(result.current.getProductURL(rhdhProduct)).toBe("");
+    });
+
+    it("returns empty string when consoleURL has no '.apps' segment", () => {
+      const user: User = {
+        ...readyUserFixture,
+        consoleURL: "https://console.example.com",
+      };
+      const { result } = renderResolver({ user });
+
+      expect(result.current.getProductURL(rhdhProduct)).toBe("");
+    });
+  });
+
   describe("URL template without parameters", () => {
     it("returns the template string as-is", () => {
       const { result } = renderResolver();
