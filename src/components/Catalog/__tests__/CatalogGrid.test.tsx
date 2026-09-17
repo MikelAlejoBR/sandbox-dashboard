@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
@@ -19,6 +19,7 @@ import { UserSignupPhase } from "../../../hooks/userSignupPhase";
 import { readyUserFixture } from "../../../mocks/fixtures";
 import { ProductType } from "../../../types/product";
 import { OpenClawStatus } from "../../../utils/openclaw-utils";
+import { RHDH_READY_DELAY_MS } from "../../../utils/rhdh-utils";
 import { CatalogGrid } from "../CatalogGrid";
 import { products } from "../productData";
 import { makeOpenClawContext } from "./openClawTestHelpers";
@@ -80,7 +81,7 @@ function renderGrid(
   const ansibleCtx = makeAnsibleContext(ansibleOverrides);
   const openClawCtx = makeOpenClawContext(openClawOverrides);
   const uiConfigCtx = makeUIConfigContext(uiConfigOverrides);
-  render(
+  const view = render(
     <NotificationProvider>
       <UIConfigurationContext.Provider value={uiConfigCtx}>
         <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
@@ -101,7 +102,7 @@ function renderGrid(
       </UIConfigurationContext.Provider>
     </NotificationProvider>,
   );
-  return { ansibleCtx, openClawCtx };
+  return { ansibleCtx, openClawCtx, unmount: view.unmount };
 }
 
 function getOpenShiftCard(): HTMLElement {
@@ -119,6 +120,15 @@ function getOpenShiftCard(): HTMLElement {
 function getOpenShiftTryItButton(): HTMLElement {
   return within(getOpenShiftCard()).getByRole("button", { name: "Try it" });
 }
+
+function getRhdhCard(): HTMLElement {
+  return screen.getByRole("article", {
+    name: "Red Hat Developer Hub product card",
+  });
+}
+
+const rhdhProductUrl =
+  "https://backstage-developer-hub-rhdh-operator.apps.example.com";
 
 describe("CatalogGrid", () => {
   beforeEach(() => {
@@ -323,5 +333,212 @@ describe("CatalogGrid", () => {
 
     expect(windowOpenSpy).not.toHaveBeenCalled();
     windowOpenSpy.mockRestore();
+  });
+
+  describe("RHDH card", () => {
+    it("opens the product URL when the account is ready and startDate is old enough", async () => {
+      const windowOpenSpy = vi
+        .spyOn(window, "open")
+        .mockImplementation(() => null);
+
+      renderGrid(makeContext());
+
+      const tryItButton = within(getRhdhCard()).getByRole("button", {
+        name: "Try it",
+      });
+      expect(tryItButton).toBeEnabled();
+      expect(
+        within(getRhdhCard()).queryByRole("progressbar"),
+      ).not.toBeInTheDocument();
+      expect(
+        within(getRhdhCard()).queryByRole("button", {
+          name: "Delete instance",
+        }),
+      ).not.toBeInTheDocument();
+
+      await userEvent.click(tryItButton);
+
+      expect(windowOpenSpy).toHaveBeenCalledWith(
+        rhdhProductUrl,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      windowOpenSpy.mockRestore();
+    });
+
+    it("shows a disabled provisioning button when startDate is recent", () => {
+      const windowOpenSpy = vi
+        .spyOn(window, "open")
+        .mockImplementation(() => null);
+
+      renderGrid(
+        makeContext({
+          user: {
+            ...readyUserFixture,
+            startDate: new Date().toISOString(),
+          },
+        }),
+      );
+
+      const provisioningButton = within(getRhdhCard()).getByRole("button", {
+        name: /Provisioning/,
+      });
+      expect(provisioningButton).toBeDisabled();
+      expect(provisioningButton.textContent).toContain("Provisioning...");
+      expect(
+        within(getRhdhCard()).getByRole("progressbar"),
+      ).toBeInTheDocument();
+      expect(windowOpenSpy).not.toHaveBeenCalled();
+      windowOpenSpy.mockRestore();
+    });
+
+    it("enables the Try it button after the RHDH grace period elapses", async () => {
+      vi.useFakeTimers();
+      try {
+        const startDate = "2026-01-01T00:00:00.000Z";
+        vi.setSystemTime(new Date(startDate));
+
+        renderGrid(
+          makeContext({
+            user: {
+              ...readyUserFixture,
+              startDate,
+            },
+          }),
+        );
+
+        expect(
+          within(getRhdhCard()).getByRole("button", { name: /Provisioning/ }),
+        ).toBeDisabled();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(RHDH_READY_DELAY_MS);
+        });
+
+        expect(
+          within(getRhdhCard()).getByRole("button", { name: /Provisioning/ }),
+        ).toBeDisabled();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1);
+        });
+
+        expect(
+          within(getRhdhCard()).getByRole("button", { name: "Try it" }),
+        ).toBeEnabled();
+        expect(
+          within(getRhdhCard()).queryByRole("progressbar"),
+        ).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not enable RHDH after the grace period when startDate is missing", async () => {
+      vi.useFakeTimers();
+      try {
+        renderGrid(
+          makeContext({
+            user: {
+              ...readyUserFixture,
+              startDate: undefined,
+            },
+          }),
+        );
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(RHDH_READY_DELAY_MS + 1_000);
+        });
+
+        expect(
+          within(getRhdhCard()).getByRole("button", { name: /Provisioning/ }),
+        ).toBeDisabled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("shows a disabled provisioning button when startDate is missing", () => {
+      renderGrid(
+        makeContext({
+          user: {
+            ...readyUserFixture,
+            startDate: undefined,
+          },
+        }),
+      );
+
+      const provisioningButton = within(getRhdhCard()).getByRole("button", {
+        name: /Provisioning/,
+      });
+      expect(provisioningButton).toBeDisabled();
+      expect(
+        within(getRhdhCard()).getByRole("progressbar"),
+      ).toBeInTheDocument();
+    });
+
+    it("keeps other simple cards enabled while RHDH is provisioning", () => {
+      renderGrid(
+        makeContext({
+          user: {
+            ...readyUserFixture,
+            startDate: new Date().toISOString(),
+          },
+        }),
+      );
+
+      expect(getOpenShiftTryItButton()).toBeEnabled();
+      expect(
+        within(getRhdhCard()).getByRole("button", { name: /Provisioning/ }),
+      ).toBeDisabled();
+    });
+
+    it("disables the primary button before the account is READY", () => {
+      const preReadyPhases = [
+        UserSignupPhase.INITIAL_FETCH,
+        UserSignupPhase.NOT_STARTED,
+        UserSignupPhase.PENDING_PHONE_VERIFICATION,
+        UserSignupPhase.PENDING_MANUAL_APPROVAL,
+        UserSignupPhase.SIGNING_UP,
+        UserSignupPhase.PROVISIONING,
+        UserSignupPhase.BLOCKED,
+      ];
+
+      for (const userSignupPhase of preReadyPhases) {
+        const { unmount } = renderGrid(
+          makeContext({
+            userSignupPhase,
+            user:
+              userSignupPhase === UserSignupPhase.NOT_STARTED
+                ? undefined
+                : readyUserFixture,
+          }),
+        );
+
+        expect(
+          within(getRhdhCard()).getByRole("button", { name: /Try it/ }),
+        ).toBeDisabled();
+        expect(
+          within(getRhdhCard()).queryByRole("progressbar"),
+        ).not.toBeInTheDocument();
+        unmount();
+      }
+    });
+
+    it("hides the card when rhdh is disabled", () => {
+      renderGrid(
+        makeContext(),
+        {},
+        {},
+        { disabledIntegrations: [ProductType.RHDH] },
+      );
+
+      expect(
+        screen.queryByRole("article", {
+          name: "Red Hat Developer Hub product card",
+        }),
+      ).not.toBeInTheDocument();
+      expect(getOpenShiftCard()).toBeInTheDocument();
+    });
   });
 });

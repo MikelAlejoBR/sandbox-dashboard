@@ -151,6 +151,12 @@ export interface PlaywrightOverrides {
     __initialState__?: number;
 
     /**
+     * Overrides the ready user's startDate so tests can simulate the RHDH
+     * provisioning window after the account becomes ready.
+     */
+    __startDate__?: string;
+
+    /**
      * Defines the state machine used by MSW to return different requests.
      */
     __stateMachine__?: StateMachine<number>;

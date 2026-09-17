@@ -8,6 +8,7 @@ export enum ProductType {
   OPENSHIFT_AI = "red-hat-data-science",
   OPENSHIFT_CONSOLE = "openshift-console",
   OPENSHIFT_VIRTUALIZATION = "openshift-virtualization",
+  RHDH = "rhdh",
 }
 
 /**

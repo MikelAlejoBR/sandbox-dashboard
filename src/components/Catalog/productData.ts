@@ -4,6 +4,7 @@ import OpenClawIcon from "../../assets/logos/openclaw.svg";
 import OpenShiftIcon from "../../assets/logos/openshift.svg";
 import OpenShiftAIIcon from "../../assets/logos/openshift-ai.svg";
 import OpenshiftVirtualizationIcon from "../../assets/logos/openshift-virtualization.svg";
+import RHDHIcon from "../../assets/logos/rhdh_logo.svg";
 import {
   BulletPointIconType,
   type Product,
@@ -176,6 +177,38 @@ export const products: Product[] = [
       {
         bulletPoint: "Requires at least one AI provider credential",
         iconType: BulletPointIconType.WARNING,
+      },
+    ],
+  },
+  {
+    type: ProductType.RHDH,
+    title: "Red Hat Developer Hub",
+    image: RHDHIcon,
+    resolveURL: (urlTemplateVars: URLTemplateVars): string => {
+      // Derive RHDH's URL from the cluster's URL.
+      //
+      // - https://console-openshift-console.apps.cluster1.example.com
+      // - https://backstage-developer-hub-rhdh-operator.apps.cluster1.example.com.
+      if (!urlTemplateVars.consoleURL) {
+        return "";
+      }
+
+      const index = urlTemplateVars.consoleURL.indexOf(".apps");
+      if (index === -1) {
+        return "";
+      }
+
+      return `https://backstage-developer-hub-rhdh-operator${urlTemplateVars.consoleURL.substring(index)}`;
+    },
+    description: [
+      {
+        bulletPoint:
+          "Backstage-based internal developer portal built for enterprises",
+      },
+      { bulletPoint: "Streamline development workflows" },
+      {
+        bulletPoint:
+          "Improve developer collaboration and accelerate innovation",
       },
     ],
   },

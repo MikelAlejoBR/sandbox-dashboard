@@ -1,6 +1,6 @@
 import "./CatalogGrid.css";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAnalyticsContext } from "../../hooks/AnalyticsContext";
 import { AnsibleProvider } from "../../hooks/AnsibleProvider";
@@ -12,6 +12,7 @@ import { useUserContext } from "../../hooks/UserContext";
 import { UserSignupPhase } from "../../hooks/userSignupPhase";
 import useTriedProducts from "../../hooks/useTriedProducts";
 import { type Product, ProductType } from "../../types/product";
+import { isRhdhReady, RHDH_READY_DELAY_MS } from "../../utils/rhdh-utils";
 import { AnsibleCatalogCard } from "./AnsibleCatalogCard";
 import { CatalogCard } from "./CatalogCard";
 import { ButtonLabel } from "./catalogCardTypes";
@@ -23,7 +24,7 @@ export function CatalogGrid() {
   const { getProductURL } = useProductURLResolver();
   const { disabledIntegrations } = useUIConfigurationContext();
   const { openPhoneVerificationModal } = usePhoneVerificationContext();
-  const { signupUser, userSignupPhase } = useUserContext();
+  const { signupUser, user, userSignupPhase } = useUserContext();
 
   /**
    * Filters the disabled products so that they do not get shown in the
@@ -87,6 +88,42 @@ export function CatalogGrid() {
     [openPhoneVerificationModal, openProductURL, signupUser, userSignupPhase],
   );
 
+  // Force a rerender when the RHDH grace period expires so isRhdhReady is
+  // reevaluated at startDate plus the delay, without waiting for another
+  // user or signup-phase update.
+  const [, setRhdhReadyAt] = useState<number>(0);
+  useEffect(() => {
+    if (userSignupPhase !== UserSignupPhase.READY || isRhdhReady(user)) {
+      return undefined;
+    }
+
+    const startMs = Date.parse(user?.startDate ?? "");
+    if (Number.isNaN(startMs)) {
+      return undefined;
+    }
+
+    // isRhdhReady uses a strict greater-than check, so fire just after the
+    // delay rather than at the exact threshold.
+    const timeoutId = window.setTimeout(
+      () => {
+        setRhdhReadyAt(Date.now());
+      },
+      Math.max(startMs + RHDH_READY_DELAY_MS + 1 - Date.now(), 0),
+    );
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [user, userSignupPhase]);
+
+  // RHDH cannot be opened until the account is READY and the 15-second
+  // window after startDate has elapsed. Signup and phone verification stay
+  // on the other catalog cards.
+  const isRhdhProvisioning =
+    userSignupPhase === UserSignupPhase.READY && !isRhdhReady(user);
+  const isRhdhButtonEnabled =
+    userSignupPhase === UserSignupPhase.READY && isRhdhReady(user);
+
   // We treat not having the "disabledIntegrations" field set as all of them
   // being disabled.
   if (disabledIntegrations === undefined) {
@@ -119,6 +156,27 @@ export function CatalogGrid() {
                     markProductAsTried={markProductAsTried}
                   />
                 </OpenClawProvider>
+              </div>
+            );
+          case ProductType.RHDH:
+            return (
+              <div key={product.type} className="sandbox-catalog-card-wrapper">
+                <CatalogCard
+                  product={product}
+                  primaryButtonLabel={
+                    isRhdhProvisioning
+                      ? ButtonLabel.PROVISIONING
+                      : ButtonLabel.TRY_IT
+                  }
+                  isGreenCornerVisible={isProductTried(product)}
+                  isPrimaryButtonDisabled={!isRhdhButtonEnabled}
+                  isPrimaryButtonSpinnerVisible={isRhdhProvisioning}
+                  isPrimaryButtonExtIconVisible
+                  isDeleteButtonVisible={false}
+                  onClickPrimaryButton={() =>
+                    handleOnClickPrimaryButtonSimpleCards(product)
+                  }
+                />
               </div>
             );
           default:

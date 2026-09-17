@@ -88,6 +88,15 @@ test.describe("Catalog page", () => {
       await expect(
         openshiftCard.getByRole("button", { name: "Try it" }),
       ).toBeVisible();
+
+      // RHDH stays disabled until the account is ready.
+      await expect(
+        page
+          .getByRole("article", {
+            name: "Red Hat Developer Hub product card",
+          })
+          .getByRole("button", { name: "Try it" }),
+      ).toBeDisabled();
     });
   });
 
@@ -149,6 +158,13 @@ test.describe("Catalog page", () => {
       await expect(
         page.getByText('Click on "Try it" to initiate'),
       ).toBeVisible();
+      await expect(
+        page
+          .getByRole("article", {
+            name: "Red Hat Developer Hub product card",
+          })
+          .getByRole("button", { name: "Try it" }),
+      ).toBeDisabled();
     });
 
     test("displays a manual approval message when approval is pending", async ({
@@ -163,6 +179,13 @@ test.describe("Catalog page", () => {
       await page.goto("/");
 
       await expect(page.getByText("Please wait for")).toBeVisible();
+      await expect(
+        page
+          .getByRole("article", {
+            name: "Red Hat Developer Hub product card",
+          })
+          .getByRole("button", { name: "Try it" }),
+      ).toBeDisabled();
     });
 
     test("does not launch a product when manual approval is pending", async ({
@@ -231,7 +254,7 @@ test.describe("Catalog page", () => {
       ).toBeVisible();
     });
 
-    test("displays six product cards with their action buttons", async ({
+    test("displays the product cards with their action buttons", async ({
       page,
     }) => {
       const expectedPairs: { productTitle: string; buttonTitle: string }[] = [
@@ -247,6 +270,7 @@ test.describe("Catalog page", () => {
         },
         { productTitle: "OpenShift Virtualization", buttonTitle: "Try it" },
         { productTitle: "OpenClaw", buttonTitle: "Provision" },
+        { productTitle: "Red Hat Developer Hub", buttonTitle: "Try it" },
       ];
 
       for (const pair of expectedPairs) {
@@ -288,6 +312,70 @@ test.describe("Catalog page", () => {
           name: "Ansible Automation Platform product card",
         }),
       ).not.toBeVisible();
+    });
+  });
+
+  test.describe("RHDH product card", { tag: "@mock-only" }, () => {
+    test("opens the product URL when startDate is old enough", async ({
+      page,
+    }) => {
+      // The mock console host is not a real cluster, so fulfill the derived
+      // RHDH URL and assert the popup target instead of waiting on DNS.
+      await page
+        .context()
+        .route(/backstage-developer-hub-rhdh-operator/, async (route) => {
+          await route.fulfill({
+            status: 200,
+            contentType: "text/html",
+            body: "<html><body>RHDH</body></html>",
+          });
+        });
+
+      await page.goto("/");
+
+      const rhdhCard = page.getByRole("article", {
+        name: "Red Hat Developer Hub product card",
+      });
+      const tryItButton = rhdhCard.getByRole("button", { name: "Try it" });
+      await expect(tryItButton).toBeEnabled();
+
+      const popupPromise = page.waitForEvent("popup");
+      await tryItButton.click();
+      const popup = await popupPromise;
+      await popup.waitForURL(/backstage-developer-hub-rhdh-operator/);
+      await popup.close();
+    });
+
+    test("shows a disabled provisioning button when startDate is recent", async ({
+      page,
+    }) => {
+      const frozenStartDate = "2026-01-01T00:00:00.000Z";
+      // Freeze Date.now() so isRhdhReady keeps seeing a recent startDate
+      // for the whole assertion, instead of a wall-clock timestamp that
+      // can drift past the 15-second grace period.
+      await page.clock.setFixedTime(new Date(frozenStartDate));
+      await page.addInitScript((startDate) => {
+        window.__playwrightOverrides__ ??= {};
+        window.__playwrightOverrides__.__signup__ ??= {};
+        window.__playwrightOverrides__.__signup__.__startDate__ = startDate;
+      }, frozenStartDate);
+
+      await page.goto("/");
+
+      const rhdhCard = page.getByRole("article", {
+        name: "Red Hat Developer Hub product card",
+      });
+      const provisioningButton = rhdhCard.getByRole("button", {
+        name: /Provisioning/,
+      });
+      await expect(provisioningButton).toBeVisible();
+      await expect(provisioningButton).toBeDisabled();
+
+      await expect(
+        page
+          .getByRole("article", { name: "OpenShift product card" })
+          .getByRole("button", { name: "Try it" }),
+      ).toBeEnabled();
     });
   });
 });

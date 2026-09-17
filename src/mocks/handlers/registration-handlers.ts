@@ -51,6 +51,22 @@ function getAppConfig() {
   return window.__config__;
 }
 
+/**
+ * Returns the ready user fixture, applying any Playwright startDate
+ * override used to simulate the RHDH provisioning window.
+ */
+function getReadyUser() {
+  const startDateOverride = getPlaywrightOverrides()?.__signup__?.__startDate__;
+  if (startDateOverride === undefined) {
+    return readyUserFixture;
+  }
+
+  return {
+    ...readyUserFixture,
+    startDate: startDateOverride,
+  };
+}
+
 export const registrationMockHandlers: RequestHandler[] = [
   http.get("*/api/v1/authconfig", () => {
     const fixture =
@@ -68,7 +84,7 @@ export const registrationMockHandlers: RequestHandler[] = [
       case UserSignupPhase.SIGNING_UP:
         return new HttpResponse(null, { status: 404 });
       case UserSignupPhase.READY:
-        return HttpResponse.json(readyUserFixture);
+        return HttpResponse.json(getReadyUser());
       case UserSignupPhase.PROVISIONING:
       case UserSignupPhase.PROVISIONING_TIMED_OUT:
         return HttpResponse.json(provisioningUserFixture);
