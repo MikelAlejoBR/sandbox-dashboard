@@ -54,6 +54,13 @@ repository:
 
 ### General guidelines
 
+- Please, make use of acronyms only if the first occurrence of it in the same
+  comment or documentation block has the full meaning written.
+- Please avoid writing cryptic, overly clever or unnecessarily sophisticated
+  words or phrases in comments, explanations or documentation, even if it is
+  at the expense of writing a lengthier comment. For example, prefer "this
+  retries the request up to three times" to "this employs a resilient retry
+  heuristic".
 - Avoid using inline styling as much as possible for new code, unless it's
   less than 3 CSS directives. Prefer using CSS classes always, to keep the
   attributes clean.
