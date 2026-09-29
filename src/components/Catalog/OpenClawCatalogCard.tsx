@@ -286,7 +286,7 @@ export function OpenClawCatalogCard({
 
       openClawProvisionInFlight.current = true;
       try {
-        await startProvisioning(credentials, false);
+        await startProvisioning(credentials, true);
         trackAnalytics(product, "Catalog", undefined, "cta");
         markProductAsTried(product);
       } catch (error) {

@@ -64,6 +64,41 @@ describe("createOrUpdateSecret (via createOpenClaw)", () => {
     expect(postCalled).toBe(true);
   });
 
+  it.each([true, false])(
+    "sets spec.auth.disableDevicePairing to %s on the Claw create request",
+    async (disableDevicePairing) => {
+      let clawBody:
+        | {
+            spec?: { auth?: { disableDevicePairing?: boolean } };
+          }
+        | undefined;
+      server.use(
+        http.post(
+          `${SECRETS_BASE}`,
+          () => new HttpResponse(null, { status: 201 }),
+        ),
+        http.post(
+          `${PROXY_URL}/apis/claw.sandbox.redhat.com/v1alpha1/namespaces/${TARGET_NS}/claws`,
+          async ({ request }) => {
+            clawBody = (await request.json()) as typeof clawBody;
+            return new HttpResponse(null, { status: 201 });
+          },
+        ),
+      );
+
+      await createOpenClaw(
+        PROXY_URL,
+        TARGET_NS,
+        [testCredential],
+        disableDevicePairing,
+      );
+
+      expect(clawBody?.spec?.auth?.disableDevicePairing).toBe(
+        disableDevicePairing,
+      );
+    },
+  );
+
   it("fetches resourceVersion on 409 before PUT", async () => {
     const existingResourceVersion = "12345";
     let getCalled = false;

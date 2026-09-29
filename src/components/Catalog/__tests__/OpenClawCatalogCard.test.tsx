@@ -244,6 +244,32 @@ describe("OpenClawCatalogCard", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
+  it("disables device pairing when the user provisions an instance", async () => {
+    const user = userEvent.setup();
+    const startProvisioning = vi.fn().mockResolvedValue(undefined);
+    renderCard({ status: OpenClawStatus.NEW, startProvisioning });
+
+    await user.click(getPrimaryButton("Provision"));
+
+    const providerInput = screen.getByPlaceholderText(
+      "Select or type an AI provider",
+    );
+    await user.click(providerInput);
+    await user.keyboard("{ArrowDown}{Enter}");
+    await user.type(screen.getByLabelText("API Key"), "gemini-test-key");
+    await user.click(screen.getByTestId("openclaw-provision-button"));
+
+    expect(startProvisioning).toHaveBeenCalledWith(
+      [
+        expect.objectContaining({
+          provider: expect.objectContaining({ id: "gemini" }),
+          values: { "api-key": "gemini-test-key" },
+        }),
+      ],
+      true,
+    );
+  });
+
   it("opens info modal when status is FAILED", async () => {
     renderCard({ status: OpenClawStatus.FAILED });
 
