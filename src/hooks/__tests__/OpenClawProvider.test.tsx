@@ -80,6 +80,31 @@ function TestConsumer() {
   const [deleteError, setDeleteError] = useState("");
   const [provisionError, setProvisionError] = useState("");
 
+  const provision = async (isDevicePairingDisabled: boolean) => {
+    try {
+      await ctx.startProvisioning(
+        [
+          {
+            provider: {
+              id: "cred",
+              name: "cred",
+              provider: "cred",
+              category: "custom",
+              credentialType: "apiKey",
+              fields: [],
+            },
+            values: { "api-key": "token" },
+          },
+        ],
+        isDevicePairingDisabled,
+      );
+    } catch (e) {
+      setProvisionError(
+        e instanceof UserFacingError ? "UserFacingError" : "other",
+      );
+    }
+  };
+
   return (
     <div>
       <span data-testid="status">{ctx.status}</span>
@@ -95,29 +120,14 @@ function TestConsumer() {
       </span>
       <button
         data-testid="start-provisioning"
-        onClick={async () => {
-          try {
-            await ctx.startProvisioning(
-              [
-                {
-                  provider: {
-                    id: "cred",
-                    name: "cred",
-                    provider: "cred",
-                    category: "custom",
-                    credentialType: "apiKey",
-                    fields: [],
-                  },
-                  values: { "api-key": "token" },
-                },
-              ],
-              false,
-            );
-          } catch (e) {
-            setProvisionError(
-              e instanceof UserFacingError ? "UserFacingError" : "other",
-            );
-          }
+        onClick={() => {
+          void provision(false);
+        }}
+      />
+      <button
+        data-testid="start-provisioning-pairing-disabled"
+        onClick={() => {
+          void provision(true);
         }}
       />
       <button
@@ -897,6 +907,42 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.READY,
         );
       });
+    });
+
+    it("creates the Claw with device pairing disabled when requested", async () => {
+      mockedGetSpaceRequest.mockResolvedValueOnce(undefined);
+      mockedCreateSpaceRequest.mockResolvedValue(undefined);
+
+      renderProvider();
+      await waitFor(() => expect(mockedGetSpaceRequest).toHaveBeenCalled());
+
+      await act(async () => {
+        screen.getByTestId("start-provisioning-pairing-disabled").click();
+      });
+
+      mockedGetSpaceRequest.mockResolvedValue(clawSpaceRequest);
+      mockedSetupWorkspaceEnvironment.mockResolvedValue(undefined);
+      mockedCreateWorkspaceKubeconfig.mockResolvedValue(undefined);
+      mockedCreateOpenClaw.mockResolvedValue(undefined);
+      mockedGetOpenClaw.mockResolvedValueOnce(undefined);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000);
+      });
+
+      await waitFor(() => expect(mockedCreateOpenClaw).toHaveBeenCalled());
+      expect(mockedCreateOpenClaw).toHaveBeenCalledWith(
+        MOCK_PROXY_URL,
+        "claw",
+        [
+          expect.objectContaining({
+            values: { "api-key": "token" },
+          }),
+        ],
+        true,
+        expect.anything(),
+        expect.anything(),
+      );
     });
 
     it("stays in PROVISIONING when the space request namespace is not resolved yet", async () => {
