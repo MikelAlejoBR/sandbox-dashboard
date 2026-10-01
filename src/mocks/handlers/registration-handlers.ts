@@ -79,6 +79,7 @@ export const registrationMockHandlers: RequestHandler[] = [
   http.get("*/api/v1/signup", () => {
     const phase = userSignupState.getPhase();
     switch (phase) {
+      case UserSignupPhase.UNAUTHENTICATED:
       case UserSignupPhase.INITIAL_FETCH:
       case UserSignupPhase.NOT_STARTED:
       case UserSignupPhase.SIGNING_UP:
@@ -152,16 +153,15 @@ export const registrationMockHandlers: RequestHandler[] = [
     return new HttpResponse(segmentWriteKeyFixture);
   }),
 
-  http.get("*/api/v1/uiconfig", () => {
+  http.get("*/api/v1/uiconfig-public", () => {
     const disabledIntegrations =
       getPlaywrightOverrides()?.__uiconfig__?.__disabledIntegrations__;
-    if (disabledIntegrations) {
-      return HttpResponse.json({
-        ...uiConfigFixture,
-        disabledIntegrations,
-      });
-    }
+    return HttpResponse.json({
+      disabledIntegrations: disabledIntegrations ?? [],
+    });
+  }),
 
+  http.get("*/api/v1/uiconfig", () => {
     return HttpResponse.json(uiConfigFixture);
   }),
 

@@ -3,7 +3,10 @@ import React from "react";
 
 import { setTokenGetter } from "./api/authFetch";
 import { App } from "./App";
-import { AuthenticatedContext } from "./auth/AuthenticatedContext";
+import {
+  AuthenticatedContext,
+  type AuthenticatedUser,
+} from "./auth/AuthenticatedContext";
 import { server } from "./mocks/server";
 
 vi.mock("@rhds/elements/react/rh-footer/rh-footer.js", () => ({
@@ -18,6 +21,16 @@ vi.mock("@rhds/elements/react/rh-footer/rh-footer-block.js", () => ({
 
 vi.mock("@rhds/elements/react/rh-footer/rh-footer-social-link.js", () => ({
   FooterSocialLink: (props: React.HTMLAttributes<HTMLDivElement>) =>
+    React.createElement("div", props),
+}));
+
+vi.mock("@rhds/elements/react/rh-footer/rh-footer-copyright.js", () => ({
+  FooterCopyright: (props: React.HTMLAttributes<HTMLDivElement>) =>
+    React.createElement("div", props),
+}));
+
+vi.mock("@rhds/elements/react/rh-footer/rh-footer-universal.js", () => ({
+  FooterUniversal: (props: React.HTMLAttributes<HTMLDivElement>) =>
     React.createElement("div", props),
 }));
 
@@ -50,7 +63,8 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 test("renders without crashing in dev bypass mode", async () => {
-  const fakeAuthenticatedContextValue = {
+  const fakeAuthenticatedContextValue: AuthenticatedUser = {
+    authenticated: true,
     token: "dev-fake-token",
     givenName: "Developer",
     familyName: "Sandbox",

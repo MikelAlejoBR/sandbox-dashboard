@@ -36,6 +36,23 @@ vi.mock("@rhds/elements/react/rh-footer/rh-footer-social-link.js", () => ({
     React.createElement("div", props),
 }));
 
+vi.mock("@rhds/elements/react/rh-footer/rh-footer-copyright.js", () => ({
+  FooterCopyright: (props: React.HTMLAttributes<HTMLDivElement>) =>
+    React.createElement("div", props),
+}));
+
+vi.mock("@rhds/elements/react/rh-footer/rh-footer-universal.js", () => ({
+  FooterUniversal: (
+    props: React.HTMLAttributes<HTMLDivElement> & Record<string, unknown>,
+  ) =>
+    React.createElement("div", {
+      ...props,
+      "data-testid":
+        (props as Record<string, unknown>)["data-testid"] ??
+        "rh-footer-universal",
+    }),
+}));
+
 vi.mock("@rhds/elements/react/rh-cta/rh-cta.js", () => ({
   Cta: (props: React.HTMLAttributes<HTMLDivElement>) =>
     React.createElement("div", props),

@@ -1,18 +1,23 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 
-import { setTokenGetter } from "../../api/authFetch";
 import { server } from "../../mocks/server";
-import { useUIConfigurationContext } from "../UIConfigurationContext";
-import { UIConfigurationProvider } from "../UIConfigurationProvider";
+import { ProductType } from "../../types/product";
+import { usePublicConfigurationContext } from "../PublicConfigurationContext";
+import { PublicConfigurationProvider } from "../PublicConfigurationProvider";
 
 function ContextConsumer() {
-  const ctx = useUIConfigurationContext();
+  const ctx = usePublicConfigurationContext();
   return (
     <div>
-      <span data-testid="disabledIntegrations">
-        {JSON.stringify(ctx.disabledIntegrations)}
+      <span data-testid="isLoading">{String(ctx.isLoading)}</span>
+      <span data-testid="disabledCount">{ctx.disabledIntegrations.size}</span>
+      <span data-testid="hasAAP">
+        {String(ctx.disabledIntegrations.has(ProductType.AAP))}
       </span>
-      <span data-testid="marketoWebhookURL">{ctx.marketoWebhookURL ?? ""}</span>
+      <span data-testid="hasConsole">
+        {String(ctx.disabledIntegrations.has(ProductType.OPENSHIFT_CONSOLE))}
+      </span>
     </div>
   );
 }
@@ -23,39 +28,106 @@ beforeAll(() => {
     recaptchaSiteKey: "test-site-key",
     environment: "dev",
   };
-  setTokenGetter(async () => "test-token");
   server.listen({ onUnhandledRequest: "bypass" });
 });
 
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-describe("UIConfigurationProvider", () => {
-  it("fetches disabled integrations and marketo webhook URL from UI config", async () => {
+describe("PublicConfigurationProvider", () => {
+  it("starts in the loading state", () => {
+    server.use(
+      http.get("https://registration.example.com/api/v1/uiconfig-public", () =>
+        HttpResponse.json({ disabledIntegrations: [] }),
+      ),
+    );
+
     render(
-      <UIConfigurationProvider>
+      <PublicConfigurationProvider>
         <ContextConsumer />
-      </UIConfigurationProvider>,
+      </PublicConfigurationProvider>,
+    );
+
+    expect(screen.getByTestId("isLoading").textContent).toBe("true");
+  });
+
+  it("fetches disabled integrations from public UI config", async () => {
+    server.use(
+      http.get("https://registration.example.com/api/v1/uiconfig-public", () =>
+        HttpResponse.json({
+          disabledIntegrations: [
+            "ansible-automation-platform",
+            "openshift-console",
+          ],
+        }),
+      ),
+    );
+
+    render(
+      <PublicConfigurationProvider>
+        <ContextConsumer />
+      </PublicConfigurationProvider>,
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("disabledIntegrations").textContent).toBe("[]");
+      expect(screen.getByTestId("disabledCount").textContent).toBe("2");
     });
 
-    expect(screen.getByTestId("marketoWebhookURL").textContent).toBe(
-      "https://webhooks.example.com/sandbox",
+    expect(screen.getByTestId("isLoading").textContent).toBe("false");
+    expect(screen.getByTestId("hasAAP").textContent).toBe("true");
+    expect(screen.getByTestId("hasConsole").textContent).toBe("true");
+  });
+
+  it("returns an empty set when no integrations are disabled", async () => {
+    server.use(
+      http.get("https://registration.example.com/api/v1/uiconfig-public", () =>
+        HttpResponse.json({ disabledIntegrations: [] }),
+      ),
     );
+
+    render(
+      <PublicConfigurationProvider>
+        <ContextConsumer />
+      </PublicConfigurationProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("isLoading").textContent).toBe("false");
+    });
+
+    expect(screen.getByTestId("disabledCount").textContent).toBe("0");
+  });
+
+  it("falls back to an empty set when the fetch fails", async () => {
+    server.use(
+      http.get(
+        "https://registration.example.com/api/v1/uiconfig-public",
+        () => new HttpResponse(null, { status: 500 }),
+      ),
+    );
+
+    render(
+      <PublicConfigurationProvider>
+        <ContextConsumer />
+      </PublicConfigurationProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("isLoading").textContent).toBe("false");
+    });
+
+    expect(screen.getByTestId("disabledCount").textContent).toBe("0");
   });
 });
 
-describe("useUIConfigurationContext", () => {
-  it("throws when used outside UIConfigurationProvider", () => {
+describe("usePublicConfigurationContext", () => {
+  it("throws when used outside PublicConfigurationProvider", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
     expect(() => render(<ContextConsumer />)).toThrow(
-      "Context useUIConfigurationContext is not defined",
+      "Context usePublicConfigurationContext is not defined",
     );
 
     consoleError.mockRestore();

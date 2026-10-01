@@ -6,9 +6,9 @@ import { useAnalyticsContext } from "../../hooks/AnalyticsContext";
 import { AnsibleProvider } from "../../hooks/AnsibleProvider";
 import { OpenClawProvider } from "../../hooks/OpenClawProvider";
 import { usePhoneVerificationContext } from "../../hooks/PhoneVerificationContext";
+import { usePublicConfigurationContext } from "../../hooks/PublicConfigurationContext";
 import { useSignupAction } from "../../hooks/signupAction/SignupActionContext";
 import { SignupActionProvider } from "../../hooks/signupAction/SignupActionProvider";
-import { useUIConfigurationContext } from "../../hooks/UIConfigurationContext";
 import useProductURLResolver from "../../hooks/useProductURLResolver";
 import { useUserContext } from "../../hooks/UserContext";
 import { UserSignupPhase } from "../../hooks/userSignupPhase";
@@ -45,7 +45,8 @@ export function CatalogGrid() {
 function CatalogGridCards() {
   const { trackAnalytics } = useAnalyticsContext();
   const { getProductURL } = useProductURLResolver();
-  const { disabledIntegrations } = useUIConfigurationContext();
+  const { disabledIntegrations, isLoading: isPublicConfigLoading } =
+    usePublicConfigurationContext();
   const { openPhoneVerificationModal } = usePhoneVerificationContext();
   const { user, userSignupPhase } = useUserContext();
   const { isSignupInProgress, signupAndRun, registerAction } =
@@ -56,11 +57,10 @@ function CatalogGridCards() {
    * catalog, and so that they are not used for the green corners.
    */
   const enabledProducts: Product[] = useMemo(() => {
-    const disabledIntegs: string[] = disabledIntegrations ?? [];
     const filtered: Product[] = [];
 
     for (const product of products) {
-      if (!disabledIntegs.includes(product.type)) {
+      if (!disabledIntegrations.has(product.type)) {
         filtered.push(product);
       }
     }
@@ -177,9 +177,9 @@ function CatalogGridCards() {
   const isRhdhButtonEnabled =
     userSignupPhase === UserSignupPhase.READY && isRhdhReady(user);
 
-  // We treat not having the "disabledIntegrations" field set as all of them
-  // being disabled.
-  if (disabledIntegrations === undefined) {
+  // Don't render the catalog until the public configuration has been
+  // fetched so that we know which integrations are disabled.
+  if (isPublicConfigLoading) {
     return null;
   }
 

@@ -11,10 +11,10 @@ import { NotificationProvider } from "../../../hooks/NotificationProvider";
 import type { OpenClawContextType } from "../../../hooks/OpenClawContext";
 import { OpenClawContext } from "../../../hooks/OpenClawContext";
 import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
+import type { PublicConfigurationContextType } from "../../../hooks/PublicConfigurationContext";
+import { PublicConfigurationContext } from "../../../hooks/PublicConfigurationContext";
 import { mockUserActivation } from "../../../hooks/signupAction/__tests__/userActivationTestHelpers";
 import { SIGNUP_WATCHER_INTERVAL_MS } from "../../../hooks/signupAction/signupActionUtils";
-import type { UIConfigurationContextType } from "../../../hooks/UIConfigurationContext";
-import { UIConfigurationContext } from "../../../hooks/UIConfigurationContext";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
 import { UserSignupPhase } from "../../../hooks/userSignupPhase";
@@ -49,10 +49,11 @@ function makeContext(
 }
 
 function makeUIConfigContext(
-  overrides: Partial<UIConfigurationContextType> = {},
-): UIConfigurationContextType {
+  overrides: Partial<PublicConfigurationContextType> = {},
+): PublicConfigurationContextType {
   return {
-    disabledIntegrations: [],
+    disabledIntegrations: new Set<ProductType>(),
+    isLoading: false,
     ...overrides,
   };
 }
@@ -78,11 +79,11 @@ function renderGridTree(
   ctx: UserContextType,
   ansibleCtx: AnsibleContextType,
   openClawCtx: OpenClawContextType,
-  uiConfigCtx: UIConfigurationContextType,
+  uiConfigCtx: PublicConfigurationContextType,
 ) {
   return (
     <NotificationProvider>
-      <UIConfigurationContext.Provider value={uiConfigCtx}>
+      <PublicConfigurationContext.Provider value={uiConfigCtx}>
         <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
           <AnsibleContext.Provider value={ansibleCtx}>
             <OpenClawContext.Provider value={openClawCtx}>
@@ -98,7 +99,7 @@ function renderGridTree(
             </OpenClawContext.Provider>
           </AnsibleContext.Provider>
         </AnalyticsContext.Provider>
-      </UIConfigurationContext.Provider>
+      </PublicConfigurationContext.Provider>
     </NotificationProvider>
   );
 }
@@ -107,7 +108,7 @@ function renderGrid(
   ctx: UserContextType,
   ansibleOverrides: Partial<AnsibleContextType> = {},
   openClawOverrides: Partial<OpenClawContextType> = {},
-  uiConfigOverrides: Partial<UIConfigurationContextType> = {},
+  uiConfigOverrides: Partial<PublicConfigurationContextType> = {},
 ) {
   const ansibleCtx = makeAnsibleContext(ansibleOverrides);
   const openClawCtx = makeOpenClawContext(openClawOverrides);
@@ -167,14 +168,6 @@ describe("CatalogGrid", () => {
     vi.useRealTimers();
   });
 
-  it("renders nothing while disabledIntegrations is undefined", () => {
-    renderGrid(makeContext(), {}, {}, { disabledIntegrations: undefined });
-    expect(screen.queryAllByRole("article")).toHaveLength(0);
-    expect(
-      screen.queryByRole("region", { name: "Product catalog" }),
-    ).toBeNull();
-  });
-
   it("renders all product cards when no integrations are disabled", () => {
     renderGrid(makeContext());
     const cards = screen.getAllByRole("article");
@@ -187,7 +180,7 @@ describe("CatalogGrid", () => {
       {},
       {},
       {
-        disabledIntegrations: [products[0].type],
+        disabledIntegrations: new Set([products[0].type]),
       },
     );
     const cards = screen.getAllByRole("article");
@@ -701,7 +694,7 @@ describe("CatalogGrid", () => {
         makeContext(),
         {},
         {},
-        { disabledIntegrations: [ProductType.RHDH] },
+        { disabledIntegrations: new Set([ProductType.RHDH]) },
       );
 
       expect(

@@ -7,13 +7,13 @@ import {
   useState,
 } from "react";
 
-import { getSegmentWriteKey } from "../api/registration";
+import { getSegmentWriteKey, getUIConfig } from "../api/registration";
+import { useAuth } from "../auth/AuthenticatedContext";
 import { Intcmp } from "../components/Catalog/productData";
 import { Environment, getConfig } from "../config/config";
 import type { Product } from "../types/product";
 import { segmentTrackClick, trackMarketoEvent } from "../utils/analytics";
 import { AnalyticsContext } from "./AnalyticsContext";
-import { useUIConfigurationContext } from "./UIConfigurationContext";
 import { useUserContext } from "./UserContext";
 
 /**
@@ -30,6 +30,9 @@ function hasAnalyticsConsent(): boolean {
 }
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
+  const [marketoWebhookURL, setMarketoWebhookURL] = useState<
+    string | undefined
+  >();
   const [segmentWriteKey, setSegmentWriteKey] = useState<string>();
   const analyticsRef = useRef<AnalyticsBrowser | null>(null);
   const hasIdentifiedRef = useRef(false);
@@ -38,7 +41,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
 
   const isProd = getConfig().environment === Environment.PRODUCTION;
   const { user } = useUserContext();
-  const { marketoWebhookURL } = useUIConfigurationContext();
+  const { authenticated: isUserAuthenticated } = useAuth();
 
   const [consentGranted, setConsentGranted] = useState(() =>
     isProd ? hasAnalyticsConsent() : false,
@@ -113,16 +116,19 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     lastIdentifiedUserIdRef.current = undefined;
   }, [consentGranted]);
 
-  // Fetch the Segment key only in production after consent is granted.
+  // Fetch the Segment key only in production after consent is granted. Also
+  // fetch the Marketo webhook URL if the user is authenticated, since we
+  // can't get any useful customer information otherwise.
   useEffect(() => {
     if (!isProd || !consentGranted) {
       return;
     }
-    // The stale flag is needed because the "getSegmentWriteKey" is async. If
-    // consent is revoked while there is a network request in-flight, React
-    // will run the effect's cleanup but the "await" could resolve afterwards.
+    // The stale flag is needed because the "fetchSegmentKey" and
+    // "fetchMarketoWebhookURL" are async. If consent is revoked while there
+    // is a network request in-flight, React will run the effect's cleanup but
+    // the "await" could resolve afterwards.
     let stale = false;
-    const fetchKey = async () => {
+    const fetchSegmentKey = async () => {
       try {
         const writeKey = await getSegmentWriteKey();
         if (!stale) {
@@ -132,11 +138,31 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         // Continue without Segment tracking
       }
     };
-    fetchKey();
+    fetchSegmentKey();
+
+    /**
+     * Fetch Marketo webhook's URL only when the user is authenticated. We
+     * only track events in the authenticated pages with it and also we do not
+     * want to expose the URL to unauthenticated users.
+     */
+    if (isUserAuthenticated) {
+      const fetchMarketoWebhookURL = async () => {
+        try {
+          const workatoWebHookURL = (await getUIConfig()).workatoWebHookURL;
+          if (!stale) {
+            setMarketoWebhookURL(workatoWebHookURL);
+          }
+        } catch {
+          // Continue without Marketo analytics
+        }
+      };
+      fetchMarketoWebhookURL();
+    }
+
     return () => {
       stale = true;
     };
-  }, [isProd, consentGranted]);
+  }, [isUserAuthenticated, isProd, consentGranted]);
 
   // Initialize Segment when write key arrives (only while consent holds).
   useEffect(() => {
@@ -154,12 +180,12 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
 
   // Segment's identify() and group() associate all subsequent track() calls
   // with the current user and their Red Hat account. We only need to call
-  // them once per session andbecause the Segment SDK caches the identity
+  // them once per session because the Segment SDK caches the identity
   // client-side and because repeating the calls would just generate redundant
   // network requests. The refs reset when the userID changes so that a
   // different user (e.g. after logout/login) gets properly re-identified.
   useEffect(() => {
-    if (!analyticsRef.current) {
+    if (!analyticsRef.current || !isUserAuthenticated) {
       return;
     }
 
@@ -199,7 +225,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         // ignore group errors
       }
     }
-  }, [consentGranted, segmentWriteKey, user]);
+  }, [isUserAuthenticated, consentGranted, segmentWriteKey, user]);
 
   // Tracks a user interaction by with both Segment and Marketo.
   //
@@ -235,12 +261,14 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      // Track only catalog clicks with a valid campaign for Marketo.
-      if (section === "Catalog" && internalCampaign) {
+      // Track only catalog clicks with a valid campaign for Marketo. Also,
+      // only track authenticated users, since we do not have any customer
+      // information for unauthenticated users anyway.
+      if (isUserAuthenticated && section === "Catalog" && internalCampaign) {
         trackMarketoEvent(user, internalCampaign, marketoWebhookURL);
       }
     },
-    [consentGranted, marketoWebhookURL, user],
+    [isUserAuthenticated, consentGranted, marketoWebhookURL, user],
   );
 
   return (

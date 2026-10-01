@@ -6,6 +6,7 @@ import { server } from "../../mocks/server";
 import { setTokenGetter } from "../authFetch";
 import {
   completePhoneVerification,
+  getPublicUIConfiguration,
   getRecaptchaToken,
   getSegmentWriteKey,
   getSignupData,
@@ -269,44 +270,67 @@ describe("getUIConfig", () => {
     expect(result).toEqual(uiConfigFixture);
   });
 
-  it("should return UI config with disabledIntegrations", async () => {
-    const configWithDisabled = {
-      ...uiConfigFixture,
-      disabledIntegrations: ["openshift-console", "devspaces"],
-    };
-    server.use(
-      http.get(`${REG_URL}/api/v1/uiconfig`, () => {
-        return HttpResponse.json(configWithDisabled);
-      }),
-    );
-
-    const result = await getUIConfig();
-    expect(result.disabledIntegrations).toEqual([
-      "openshift-console",
-      "devspaces",
-    ]);
-  });
-
-  it("should return empty config on unsuccessful response", async () => {
+  it("should throw on unsuccessful response", async () => {
     server.use(
       http.get(`${REG_URL}/api/v1/uiconfig`, () => {
         return new HttpResponse(null, { status: 500 });
       }),
     );
 
-    const result = await getUIConfig();
-    expect(result).toEqual({});
+    const error = await getUIConfig().catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.statusCode).toBe(500);
   });
 
-  it("should return empty config on fetch error", async () => {
+  it("should throw on fetch error", async () => {
     server.use(
       http.get(`${REG_URL}/api/v1/uiconfig`, () => {
         return HttpResponse.error();
       }),
     );
 
-    const result = await getUIConfig();
-    expect(result).toEqual({});
+    await expect(getUIConfig()).rejects.toThrow();
+  });
+});
+
+describe("getPublicUIConfiguration", () => {
+  it("should return public config with disabledIntegrations", async () => {
+    server.use(
+      http.get(`${REG_URL}/api/v1/uiconfig-public`, () => {
+        return HttpResponse.json({
+          disabledIntegrations: ["openshift-console", "devspaces"],
+        });
+      }),
+    );
+
+    const result = await getPublicUIConfiguration();
+    expect(result.disabledIntegrations).toEqual([
+      "openshift-console",
+      "devspaces",
+    ]);
+  });
+
+  it("should return empty disabledIntegrations array", async () => {
+    server.use(
+      http.get(`${REG_URL}/api/v1/uiconfig-public`, () => {
+        return HttpResponse.json({ disabledIntegrations: [] });
+      }),
+    );
+
+    const result = await getPublicUIConfiguration();
+    expect(result.disabledIntegrations).toEqual([]);
+  });
+
+  it("should throw on unsuccessful response", async () => {
+    server.use(
+      http.get(`${REG_URL}/api/v1/uiconfig-public`, () => {
+        return new HttpResponse(null, { status: 500 });
+      }),
+    );
+
+    const error = await getPublicUIConfiguration().catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect(error.statusCode).toBe(500);
   });
 });
 

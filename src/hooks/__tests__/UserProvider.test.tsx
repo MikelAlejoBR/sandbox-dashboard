@@ -3,12 +3,31 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 
 import { setTokenGetter } from "../../api/authFetch";
+import {
+  AuthenticatedContext,
+  type AuthenticatedContextValue,
+} from "../../auth/AuthenticatedContext";
 import { SUPPORT_EMAIL } from "../../const";
 import { server } from "../../mocks/server";
 import { NotificationProvider } from "../NotificationProvider";
 import { useUserContext } from "../UserContext";
 import { UserProvider } from "../UserProvider";
 import { UserSignupPhase } from "../userSignupPhase";
+
+const authenticatedValue: AuthenticatedContextValue = {
+  authenticated: true,
+  token: "test-token",
+  givenName: "Test",
+  familyName: "User",
+  email: "test@example.com",
+  username: "testuser",
+  logout: vi.fn(),
+};
+
+const unauthenticatedValue: AuthenticatedContextValue = {
+  authenticated: false,
+  login: vi.fn(),
+};
 
 function ContextConsumer() {
   const ctx = useUserContext();
@@ -25,13 +44,17 @@ function ContextConsumer() {
   );
 }
 
-function renderProvider() {
+function renderProvider(
+  authValue: AuthenticatedContextValue = authenticatedValue,
+) {
   return render(
-    <NotificationProvider>
-      <UserProvider>
-        <ContextConsumer />
-      </UserProvider>
-    </NotificationProvider>,
+    <AuthenticatedContext.Provider value={authValue}>
+      <NotificationProvider>
+        <UserProvider>
+          <ContextConsumer />
+        </UserProvider>
+      </NotificationProvider>
+    </AuthenticatedContext.Provider>,
   );
 }
 
@@ -841,6 +864,35 @@ describe("UserProvider", () => {
         screen.getByText("Unable to determine your account's status"),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe("UserProvider unauthenticated", () => {
+  it("sets UNAUTHENTICATED phase and skips signup fetch when not authenticated", () => {
+    renderProvider(unauthenticatedValue);
+
+    expect(screen.getByTestId("phase").textContent).toBe(
+      String(UserSignupPhase.UNAUTHENTICATED),
+    );
+    expect(screen.getByTestId("givenName").textContent).toBe("");
+  });
+
+  it("does not call signup when unauthenticated", async () => {
+    let signupCallCount = 0;
+    server.use(
+      http.post("*/api/v1/signup", () => {
+        signupCallCount++;
+        return new HttpResponse(null, { status: 200 });
+      }),
+    );
+
+    renderProvider(unauthenticatedValue);
+
+    await act(async () => {
+      screen.getByTestId("signup-btn").click();
+    });
+
+    expect(signupCallCount).toBe(0);
   });
 });
 

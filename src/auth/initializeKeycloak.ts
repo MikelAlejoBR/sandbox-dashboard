@@ -45,6 +45,7 @@ async function initializeKeycloak(
       setTokenGetter(async () => "dev-fake-token");
 
       return {
+        authenticated: true,
         token: "dev-fake-token",
         givenName: "Developer",
         familyName: "Sandbox",
@@ -136,6 +137,7 @@ async function initializeKeycloak(
   // Obtain the claims that we use on our application.
   const parsedToken = keycloak.tokenParsed ?? {};
   return {
+    authenticated: true,
     email: (parsedToken.email as string) ?? "",
     familyName: (parsedToken.family_name as string) ?? "",
     givenName: (parsedToken.given_name as string) ?? "",

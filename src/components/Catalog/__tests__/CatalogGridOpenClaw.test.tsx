@@ -10,7 +10,7 @@ import { NotificationProvider } from "../../../hooks/NotificationProvider";
 import type { OpenClawContextType } from "../../../hooks/OpenClawContext";
 import { OpenClawContext } from "../../../hooks/OpenClawContext";
 import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
-import { UIConfigurationContext } from "../../../hooks/UIConfigurationContext";
+import { PublicConfigurationContext } from "../../../hooks/PublicConfigurationContext";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
 import { UserSignupPhase } from "../../../hooks/userSignupPhase";
@@ -59,7 +59,9 @@ function renderGrid(openClawOverrides: Partial<OpenClawContextType> = {}) {
   const openClawCtx = makeOpenClawContext(openClawOverrides);
   render(
     <NotificationProvider>
-      <UIConfigurationContext.Provider value={{ disabledIntegrations: [] }}>
+      <PublicConfigurationContext.Provider
+        value={{ disabledIntegrations: new Set(), isLoading: false }}
+      >
         <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
           <AnsibleContext.Provider value={ansibleCtx}>
             <OpenClawContext.Provider value={openClawCtx}>
@@ -73,7 +75,7 @@ function renderGrid(openClawOverrides: Partial<OpenClawContextType> = {}) {
             </OpenClawContext.Provider>
           </AnsibleContext.Provider>
         </AnalyticsContext.Provider>
-      </UIConfigurationContext.Provider>
+      </PublicConfigurationContext.Provider>
     </NotificationProvider>,
   );
 }
