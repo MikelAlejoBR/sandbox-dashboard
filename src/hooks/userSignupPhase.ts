@@ -5,6 +5,7 @@
  * without loading the UI graph.
  */
 export enum UserSignupPhase {
+  UNAUTHENTICATED,
   INITIAL_FETCH,
   NOT_STARTED,
   BLOCKED,

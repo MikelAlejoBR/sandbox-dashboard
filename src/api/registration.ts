@@ -1,6 +1,7 @@
 import { Environment, getConfig } from "../config/config";
 import { ApiError } from "../error/ApiError";
-import type { UIConfig, User } from "../types";
+import type { User } from "../types";
+import type { PublicUIConfig, UIConfig } from "../types/config";
 import logger from "../utils/logger";
 import { authFetch } from "./authFetch";
 
@@ -174,31 +175,42 @@ export async function getSegmentWriteKey(): Promise<string> {
 }
 
 /**
+ * Fetches the public UI configuration from the back end.
+ * @returns the public configuration for unauthenticated users.
+ */
+export async function getPublicUIConfiguration(): Promise<PublicUIConfig> {
+  const response = await fetch(`${getBaseURL()}/uiconfig-public`, {
+    method: "GET",
+  });
+
+  if (!response.ok) {
+    throw await ApiError.fromResponse(
+      "Unexpected error when fetching the public UI configuration",
+      response,
+    );
+  }
+
+  return response.json();
+}
+
+/**
  * Fetches the UI configuration from the back end.
- * @returns the populated UI configuration or an empty one in case of error.
+ * @returns the populated UI configuration for authenticated users.
+ * @throws {ApiError} if the response is not successful.
  */
 export async function getUIConfig(): Promise<UIConfig> {
-  try {
-    const response = await authFetch(`${getBaseURL()}/uiconfig`, {
-      method: "GET",
-    });
+  const response = await authFetch(`${getBaseURL()}/uiconfig`, {
+    method: "GET",
+  });
 
-    if (!response.ok) {
-      // We purposely do not throw the error to take advantage of the error
-      // structure's safe body unmarshalling and logging mechanisms, instead
-      // of having a manual log and the safe unmarshalling dance.
-      await ApiError.fromResponse(
-        "Unexpected error when fetching the UI configuration",
-        response,
-      );
-
-      return {};
-    }
-
-    return response.json();
-  } catch {
-    return {};
+  if (!response.ok) {
+    throw await ApiError.fromResponse(
+      "Unexpected error when fetching the UI configuration",
+      response,
+    );
   }
+
+  return response.json();
 }
 
 /**

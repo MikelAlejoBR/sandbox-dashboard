@@ -5,7 +5,20 @@ import { setTokenGetter } from "../../api/authFetch";
 import { type AppConfig, Environment } from "../../config/config";
 import { authConfigFixture } from "../../mocks/fixtures/registration-fixtures";
 import { server } from "../../mocks/server";
+import type { AuthenticatedContextValue } from "../AuthenticatedContext";
 import initializeKeycloak from "../initializeKeycloak";
+
+/**
+ * Narrows an {@link AuthenticatedContextValue} to its authenticated branch,
+ * failing the test if the value is unauthenticated.
+ */
+function expectAuthenticated(value: AuthenticatedContextValue) {
+  expect(value.authenticated).toBe(true);
+  if (!value.authenticated) {
+    throw new Error("Expected an authenticated context value");
+  }
+  return value;
+}
 
 vi.mock("keycloak-js", () => {
   const MockKeycloak = vi.fn();
@@ -53,7 +66,7 @@ describe("initializeKeycloak", () => {
     };
 
     it("returns a fake context value", async () => {
-      const result = await initializeKeycloak(config);
+      const result = expectAuthenticated(await initializeKeycloak(config));
 
       expect(result.token).toBe("dev-fake-token");
       expect(result.givenName).toBe("Developer");
@@ -127,7 +140,7 @@ describe("initializeKeycloak", () => {
     });
 
     it("returns the authenticated context value from token claims", async () => {
-      const result = await initializeKeycloak(config);
+      const result = expectAuthenticated(await initializeKeycloak(config));
 
       expect(result.token).toBe("mock-token");
       expect(result.givenName).toBe("Jane");
@@ -190,7 +203,7 @@ describe("initializeKeycloak", () => {
     });
 
     it("returns the authenticated context value", async () => {
-      const result = await initializeKeycloak(config);
+      const result = expectAuthenticated(await initializeKeycloak(config));
 
       expect(result.token).toBe("mock-token");
     });
@@ -222,7 +235,7 @@ describe("initializeKeycloak", () => {
     });
 
     it("returns the authenticated context value from token claims", async () => {
-      const result = await initializeKeycloak(config);
+      const result = expectAuthenticated(await initializeKeycloak(config));
 
       expect(result.email).toBe("jane@example.com");
       expect(result.username).toBe("janedoe");
