@@ -6,7 +6,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
 import { AuthenticatedContext } from "./auth/AuthenticatedContext";
-import initializeKeycloak from "./auth/initializeKeycloak";
+import { resolveAuthentication } from "./auth/resolveAuthentication";
 import { Environment, getConfig } from "./config/config";
 
 async function bootstrap() {
@@ -23,12 +23,12 @@ async function bootstrap() {
     await setUpMockedBackend();
   }
 
-  // Initialize Keycloak and trigger the SSO flow.
-  const authContextValue = await initializeKeycloak(configuration);
+  // Resolve the visitor's authentication status.
+  const authenticatedContextValue = await resolveAuthentication(configuration);
 
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      <AuthenticatedContext.Provider value={authContextValue}>
+      <AuthenticatedContext.Provider value={authenticatedContextValue}>
         <App />
       </AuthenticatedContext.Provider>
     </StrictMode>,
