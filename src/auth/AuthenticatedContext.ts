@@ -33,6 +33,12 @@ export type AuthenticatedContextValue =
        */
       authenticated: false;
       login: () => void;
+      /**
+       * When present, indicates that a previous authentication attempt
+       * failed (e.g. expired SSO session, stale hint cookie). Components
+       * can use this to surface a notification to the user.
+       */
+      authenticationError?: string;
     }
   | AuthenticatedUser;
 
@@ -58,7 +64,7 @@ export function useAuth(): AuthenticatedContextValue {
 }
 
 /**
- * Returns the authentication context, narrowd to the authenticated branch.
+ * Returns the authentication context, narrowed to the authenticated branch.
  * Throws if the user is not authenticated.
  *
  * Useful for components that are only rendered for authenticated users.

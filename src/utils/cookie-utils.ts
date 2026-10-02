@@ -1,3 +1,8 @@
+/**
+ * Returns the value of a cookie by name.
+ * @param name the cookie's name.
+ * @returns the cookie value, or an empty string if not found.
+ */
 export const getCookie = (name: string): string => {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -9,8 +14,24 @@ export const getCookie = (name: string): string => {
   return "";
 };
 
-export const setCookie = (name: string, value: string, days = 365): void => {
-  const expires = new Date();
-  expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-  document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/`;
+/**
+ * Sets a cookie with the given name, value and max age.
+ * @param name the cookie's name.
+ * @param value the cookie's value.
+ * @param maxAge time to live in seconds. Defaults to 86400 seconds or 24 hours.
+ */
+export const setCookie = (
+  name: string,
+  value: string,
+  maxAge = 86400,
+): void => {
+  document.cookie = `${name}=${value}; Max-Age=${maxAge}; Path=/; SameSite=Lax`;
+};
+
+/**
+ * Deletes a cookie.
+ * @param name the name of the cookie to delete.
+ */
+export const deleteCookie = (name: string): void => {
+  setCookie(name, "", 0);
 };

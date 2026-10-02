@@ -3,7 +3,10 @@ import Keycloak from "keycloak-js";
 import { setTokenGetter } from "../api/authFetch";
 import { type AppConfig, Environment } from "../config/config";
 import type { AuthConfigResponse, KeycloakClientConfig } from "../types";
+import { deleteCookie, setCookie } from "../utils/cookie-utils";
 import type { AuthenticatedContextValue } from "./AuthenticatedContext";
+
+export const SESSION_HINT_COOKIE_NAME = "rh_sd_session_hint";
 
 /**
  * Fetches the Keycloak client's configuration from the registration service.
@@ -25,42 +28,25 @@ async function fetchKeycloakClientConfiguration(
 }
 
 /**
- * Initializes the Keycloak instance and builds an authenticated context
- * value.
- *
- * @param config the app's configuration.
- * @returns an {@link AuthenticatedContextValue}. When in a "backend is
- * mocked" development environment, a fake value is returned. In every other
- * case the value is built after the authentication with the Keycloak
- * instance.
+ * Creates the Keycloak connector's instance, and configures it with the
+ * proper settings depending on the environment.
+ * @param configuration the application's configuration.
+ * @returns the Keycloak connector's configured instance, ready to be used.
  */
-async function initializeKeycloak(
-  config: AppConfig,
-): Promise<AuthenticatedContextValue> {
+export async function createAndConfigureKeycloak(
+  configuration: AppConfig,
+): Promise<Keycloak> {
   let keycloak: Keycloak;
-  switch (config.environment) {
-    case Environment.DEVELOPMENT:
-      // For the development environment simply return a fake authentication
-      // context value and assign the fake token getters and setters.
-      setTokenGetter(async () => "dev-fake-token");
 
-      return {
-        authenticated: true,
-        token: "dev-fake-token",
-        givenName: "Developer",
-        familyName: "Sandbox",
-        email: "dev@example.com",
-        username: "dev-user",
-        logout: () => {},
-      };
+  switch (configuration.environment) {
     case Environment.DEVELOPMENT_KEYCLOAK:
       // For the "development keycloak" environment we simply use the
       // configuration settings provided by the developer.
-      if (config.auth) {
+      if (configuration.auth) {
         keycloak = new Keycloak({
-          clientId: config.auth.clientId,
-          realm: config.auth.realm,
-          url: config.auth.url,
+          clientId: configuration.auth.clientId,
+          realm: configuration.auth.realm,
+          url: configuration.auth.url,
         });
       } else {
         throw new Error(
@@ -78,12 +64,14 @@ async function initializeKeycloak(
       // can easily identify the request and send it on the browser's
       // behalf. It basically strips that part and sends it to the original
       // SSO token URL.
-      if (config.auth) {
+      if (configuration.auth) {
         const clientConfig: KeycloakClientConfig =
-          await fetchKeycloakClientConfiguration(config.registrationServiceURL);
+          await fetchKeycloakClientConfiguration(
+            configuration.registrationServiceURL,
+          );
         const realmUrl = `${clientConfig["auth-server-url"]}/realms/${clientConfig.realm}/protocol/openid-connect`;
         keycloak = new Keycloak({
-          clientId: config.auth.clientId,
+          clientId: configuration.auth.clientId,
           oidcProvider: {
             authorization_endpoint: `${realmUrl}/auth`,
             token_endpoint: `/vite-sso-token-proxy${realmUrl}/token`,
@@ -99,9 +87,14 @@ async function initializeKeycloak(
       break;
     }
 
+    // In any other environment we fetch the authentication settings from the
+    // registration service and use them directly to configure our Keycloak
+    // connector.
     default: {
       const clientConfig: KeycloakClientConfig =
-        await fetchKeycloakClientConfiguration(config.registrationServiceURL);
+        await fetchKeycloakClientConfiguration(
+          configuration.registrationServiceURL,
+        );
 
       keycloak = new Keycloak({
         clientId: clientConfig.clientId,
@@ -111,6 +104,21 @@ async function initializeKeycloak(
     }
   }
 
+  return keycloak;
+}
+
+/**
+ * Initializes the Keycloak connector and triggers the SSO login flow. On
+ * success, it sets up a hint cookie so that we can identify, on subsequent
+ * visits, if the user has already been logged in.
+ *
+ * @param keycloak The configured Keycloak connector's instance.
+ * @returns an {@link AuthenticatedContextValue} with the user's information
+ * extracted from the authentication token.
+ */
+async function initializeKeycloak(
+  keycloak: Keycloak,
+): Promise<AuthenticatedContextValue> {
   // Authenticate the user.
   const authenticated = await keycloak.init({
     checkLoginIframe: false,
@@ -127,6 +135,17 @@ async function initializeKeycloak(
     throw new Error("Authentication failed");
   }
 
+  // Set up a cookie hint so that we know, on the next page visit, that the
+  // user was authenticated and so that we can perform the whole SSO flow
+  // directly, without sending the user to the landing page. The maxAge is
+  // clamped to a minimum of 60 seconds so that clock skew between the auth
+  // server and the client cannot cause the cookie to expire immediately.
+  const sessionExp = keycloak.refreshTokenParsed?.exp;
+  const maxAge = sessionExp
+    ? Math.max(sessionExp - Math.floor(Date.now() / 1000), 60)
+    : 86400;
+  setCookie(SESSION_HINT_COOKIE_NAME, "true", maxAge);
+
   // Use Keycloak's token utilities as the "token getter" for the
   // authenticated fetch calls.
   setTokenGetter(async (): Promise<string> => {
@@ -141,7 +160,10 @@ async function initializeKeycloak(
     email: (parsedToken.email as string) ?? "",
     familyName: (parsedToken.family_name as string) ?? "",
     givenName: (parsedToken.given_name as string) ?? "",
-    logout: () => keycloak.logout(),
+    logout: () => {
+      deleteCookie(SESSION_HINT_COOKIE_NAME);
+      keycloak.logout();
+    },
     token: keycloak.token,
     username: (parsedToken.preferred_username as string) ?? "",
   };

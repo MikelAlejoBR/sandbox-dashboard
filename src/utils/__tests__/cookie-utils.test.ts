@@ -1,4 +1,4 @@
-import { getCookie, setCookie } from "../cookie-utils";
+import { deleteCookie, getCookie, setCookie } from "../cookie-utils";
 
 describe("cookie-utils", () => {
   beforeEach(() => {
@@ -15,6 +15,11 @@ describe("cookie-utils", () => {
       setCookie("testName", "testValue");
       expect(document.cookie).toContain("testName=testValue");
     });
+
+    it("sets a cookie with a custom maxAge", () => {
+      setCookie("shortLived", "val", 3600);
+      expect(document.cookie).toContain("shortLived=val");
+    });
   });
 
   describe("getCookie", () => {
@@ -25,6 +30,20 @@ describe("cookie-utils", () => {
 
     it("returns empty string for a non-existent cookie", () => {
       expect(getCookie("nonexistent")).toBe("");
+    });
+  });
+
+  describe("deleteCookie", () => {
+    it("removes an existing cookie", () => {
+      setCookie("toDelete", "present");
+      expect(getCookie("toDelete")).toBe("present");
+
+      deleteCookie("toDelete");
+      expect(getCookie("toDelete")).toBe("");
+    });
+
+    it("does not throw when deleting a non-existent cookie", () => {
+      expect(() => deleteCookie("ghost")).not.toThrow();
     });
   });
 });
