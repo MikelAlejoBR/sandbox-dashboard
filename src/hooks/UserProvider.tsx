@@ -15,6 +15,7 @@ import { MEDIUM_INTERVAL, SHORT_INTERVAL, SUPPORT_EMAIL } from "../const";
 import { ApiError } from "../error/ApiError";
 import { UserFacingError } from "../error/UserFacingError";
 import { type User } from "../types";
+import { errorMessage } from "../utils/common";
 import logger from "../utils/logger";
 import {
   mapFetchUserErrorToErrorMessage,
@@ -163,10 +164,13 @@ export function UserProvider({ children }: { children: ReactNode }) {
           err,
         );
 
-        addAlert(
-          AlertVariant.danger,
-          "Unable to sign you up",
-          "We were unable to sign your account up in our systems. Please try again later.",
+        addAlertFromError(
+          new UserFacingError(
+            "Unable to sign you up",
+            `We were unable to sign your account up in our systems. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
+            err,
+            err.body,
+          ),
         );
       } else if (
         err instanceof Error &&
@@ -174,22 +178,28 @@ export function UserProvider({ children }: { children: ReactNode }) {
       ) {
         logger.error("Recaptcha failure during signup:", err);
 
-        addAlert(
-          AlertVariant.danger,
-          "Recaptcha failure",
-          "We were unable to successfully verify that you're human with Recaptcha due to an internal error. Please try again later.",
+        addAlertFromError(
+          new UserFacingError(
+            "Recaptcha failure",
+            `We were unable to successfully verify that you're human with Recaptcha due to an internal error. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
+            err,
+            err.message,
+          ),
         );
       } else {
         logger.error("Unexpected error during signup:", err);
 
-        addAlert(
-          AlertVariant.danger,
-          "Unable to sign you up",
-          "An unexpected error occurred while setting up your account. Please try again later.",
+        addAlertFromError(
+          new UserFacingError(
+            "Unable to sign you up",
+            `An unexpected error occurred while setting up your account. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
+            err,
+            errorMessage(err),
+          ),
         );
       }
     }
-  }, [addAlert, isUserAuthenticated, updateSignupPhase]);
+  }, [addAlert, addAlertFromError, isUserAuthenticated, updateSignupPhase]);
 
   // Initial user fetch when the provider is mounted.
   useEffect(() => {
@@ -317,7 +327,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
           logger.error(
             `Unexpected error while polling for the user signup: ${error}`,
           );
-          technicalDetails = `${error}`;
+          technicalDetails = errorMessage(error);
         }
 
         if (cancelled) {
@@ -338,15 +348,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
         // Make sure that after a significant amount of polling, we show some
         // feedback to the user if their account has not been provisioned.
         if (Date.now() - lastUserSignupPhaseChangedAt.current > 60_000) {
-          addAlert(
-            AlertVariant.danger,
-            "Unable to set up your Developer Sandbox account",
-            `We were unable to set up your Developer Sandbox account. Please contact support at ${SUPPORT_EMAIL}`,
+          addAlertFromError(
+            new UserFacingError(
+              "Unable to set up your Developer Sandbox account",
+              `We were unable to set up your Developer Sandbox account. Please contact support at ${SUPPORT_EMAIL}`,
+              null,
+              "The user was not provisioned after 60 seconds, and the polling for the user signup timed out",
+            ),
           );
 
-          if (cancelled) {
-            return;
-          }
           updateSignupPhase(UserSignupPhase.PROVISIONING_TIMED_OUT);
           return;
         }

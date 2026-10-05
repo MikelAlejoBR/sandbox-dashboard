@@ -165,11 +165,17 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
         .getByRole("button", { name: "Try it" })
         .click();
 
-      // Verify that the "error" toast shows up.
+      // Verify that the "error" toast shows up with the technical
+      // details so that the user can copy them for support.
       await expect(
         page.getByRole("heading", {
           level: 4,
           name: "Danger alert: Unable to sign you up",
+        }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", {
+          name: "Copy technical details",
         }),
       ).toBeVisible();
     });
