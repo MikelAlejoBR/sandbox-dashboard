@@ -10,13 +10,14 @@ import { NotificationProvider } from "./hooks/NotificationProvider";
 import { PhoneVerificationProvider } from "./hooks/PhoneVerificationProvider";
 import { PublicConfigurationProvider } from "./hooks/PublicConfigurationProvider";
 import { UserProvider } from "./hooks/UserProvider";
+import type { BootstrapData } from "./types/main";
 
-export function App() {
+export function App({ bootstrapData }: { bootstrapData: BootstrapData }) {
   return (
     <NotificationProvider>
       <ErrorBoundary>
-        <PublicConfigurationProvider>
-          <UserProvider>
+        <PublicConfigurationProvider bootstrapData={bootstrapData}>
+          <UserProvider bootstrapData={bootstrapData}>
             <AnalyticsProvider>
               <PhoneVerificationProvider>
                 <BrowserRouter>

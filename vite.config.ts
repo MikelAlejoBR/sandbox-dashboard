@@ -5,6 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react(), svgr()],
   server: {
+    allowedHosts: [".ngrok-free.app"],
     proxy: {
       // Endpoint to catch the requests to the "/token" endpoint of the SSO.
       // It helps avoiding the CORS issues of that particular endpoint. The

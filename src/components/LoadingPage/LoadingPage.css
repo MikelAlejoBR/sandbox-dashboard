@@ -1,0 +1,12 @@
+.loading-page__wrapper {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--pf-t--global--spacer--md);
+  height: 100vh;
+  justify-content: center;
+}
+
+.loading-page__content-logo {
+  height: 50px;
+}

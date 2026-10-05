@@ -70,6 +70,9 @@ const mockProduct: Product = {
   image: "openshift.svg",
   urlTemplate: "{{consoleURL}}",
   description: [{ bulletPoint: "Test" }],
+  landingPage: {
+    productDescription: "Test",
+  },
 };
 
 function TrackButton() {

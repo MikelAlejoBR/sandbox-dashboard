@@ -1,6 +1,8 @@
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 
 import { getPublicUIConfiguration } from "../api/registration";
+import type { PublicUIConfig } from "../types";
+import type { BootstrapData } from "../types/main";
 import { ProductType } from "../types/product";
 import { mapDisabledIntegrations } from "../utils/config-utils";
 import logger from "../utils/logger";
@@ -8,8 +10,10 @@ import { PublicConfigurationContext } from "./PublicConfigurationContext";
 
 export function PublicConfigurationProvider({
   children,
+  bootstrapData,
 }: {
   children: ReactNode;
+  bootstrapData: BootstrapData;
 }) {
   const [disabledIntegrations, setDisabledIntegrations] = useState<
     Set<ProductType>
@@ -19,21 +23,33 @@ export function PublicConfigurationProvider({
   // Fetches the public UI configuration.
   useEffect(() => {
     const fetchUIConfigData = async () => {
-      try {
-        const publicUIConfig = await getPublicUIConfiguration();
+      let publicUIConfig: PublicUIConfig | undefined;
 
-        setDisabledIntegrations(
-          mapDisabledIntegrations(publicUIConfig.disabledIntegrations),
-        );
+      // Attempt using the bootstrapped promise to get the configuration.
+      try {
+        publicUIConfig = await bootstrapData.publicConfig;
+      } catch {
+        // Fall through to fetching it again.
+      }
+
+      try {
+        if (!publicUIConfig) {
+          publicUIConfig = await getPublicUIConfiguration();
+        }
       } catch (err) {
         logger.error("Error fetching public UI configuration:", err);
         setDisabledIntegrations(new Set<ProductType>());
+        return;
       } finally {
         setIsLoading(false);
       }
+
+      setDisabledIntegrations(
+        mapDisabledIntegrations(publicUIConfig.disabledIntegrations),
+      );
     };
     fetchUIConfigData();
-  }, []);
+  }, [bootstrapData.publicConfig]);
 
   // Memoize the contents of the context to avoid rerenders on any state or
   // function changes.

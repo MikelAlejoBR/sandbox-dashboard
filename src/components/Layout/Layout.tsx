@@ -1,5 +1,3 @@
-import "./Layout.css";
-
 import {
   AlertVariant,
   Divider,
@@ -80,7 +78,7 @@ export function Layout() {
             }}
           >
             <RedHatLogo
-              className="rh-logo"
+              className="rh-logo rh-hat-tip"
               style={{ height: "36px", marginRight: "8px" }}
               aria-label="Red Hat Developer Sandbox"
             />

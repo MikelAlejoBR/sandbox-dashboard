@@ -7,49 +7,10 @@ import { FooterBlock } from "@rhds/elements/react/rh-footer/rh-footer-block.js";
 import { FooterCopyright } from "@rhds/elements/react/rh-footer/rh-footer-copyright.js";
 import { FooterSocialLink } from "@rhds/elements/react/rh-footer/rh-footer-social-link.js";
 import { FooterUniversal } from "@rhds/elements/react/rh-footer/rh-footer-universal.js";
-import { RhIcon } from "@rhds/elements/rh-icon/rh-icon.js";
-import iconFacebook from "@rhds/icons/social/facebook.js";
-import iconLinkedin from "@rhds/icons/social/linkedin.js";
-import iconX from "@rhds/icons/social/x.js";
-import iconYoutube from "@rhds/icons/social/youtube.js";
-import iconArrowRight from "@rhds/icons/ui/arrow-right.js";
 import { useEffect, useState } from "react";
 
 import RedHatLogo from "../../assets/logos/red_hat_logo_on_dark.svg";
 import { Environment, getConfig } from "../../config/config";
-
-// Pre-bundled icons needed by rh-footer-social-link and rh-cta. We specify
-// here so that Vite bundles them and so that we can access them when
-// rendering the footer.
-const iconRegistry = new Map<string, Node>([
-  ["social/linkedin", iconLinkedin],
-  ["social/youtube", iconYoutube],
-  ["social/facebook", iconFacebook],
-  ["social/x", iconX],
-  ["ui/arrow-right", iconArrowRight],
-]);
-
-// Override the default resolver for the RhIcon utility. The default resolver
-// uses dynamic imports depending on the requested icon, which does not work
-// with Vite due to the bundling that it performs. Therefore, when the browser
-// requests icons with the default resolver, the browser cannot find them.
-// With this override and the bundled icons, we ensure that the icons are
-// rendered.
-const defaultResolve = RhIcon.resolve;
-RhIcon.resolve = (set: string, icon: string) => {
-  const entry = iconRegistry.get(`${set}/${icon}`);
-  if (entry) {
-    return entry.cloneNode(true);
-  }
-
-  // Fall back to the default resolver if the requested icon is not bundled.
-  if (defaultResolve) {
-    return defaultResolve(set, icon);
-  }
-
-  // Otherwise simply throw a descriptive error.
-  throw new Error(`rh-icon: no icon "${icon}" registered in set "${set}"`);
-};
 
 /**
  * Loads the TrustArc "cookie preferences" script and renders the anchor
@@ -359,15 +320,13 @@ export function PageFooter() {
               </a>
             </li>
             <li>
-              <a
-                href="#"
-                onClick={(event: React.MouseEvent) => {
-                  event.preventDefault();
-                  setBrowserSupportModalOpen(true);
-                }}
+              <button
+                type="button"
+                className="rh-footer-link-button"
+                onClick={() => setBrowserSupportModalOpen(true)}
               >
                 Browser support
-              </a>
+              </button>
             </li>
             <CookieConsentElement />
           </ul>

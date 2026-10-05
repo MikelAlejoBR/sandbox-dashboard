@@ -24,7 +24,7 @@ export interface AnalyticsContextType {
    */
   trackAnalytics: (
     itemNameOrProduct: string | Product,
-    section: "Catalog" | "Activities" | "Support" | "Verification",
+    section: "Catalog" | "Activities" | "Landing" | "Support" | "Verification",
     href?: string,
     linkType?: "cta" | "default",
   ) => void;

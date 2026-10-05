@@ -1,13 +1,17 @@
 import "@patternfly/react-core/dist/styles/base.css";
 import "./global.css";
+import "./utils/rhds-icon-registry";
 
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
+import { getPublicUIConfiguration, getSignupData } from "./api/registration";
 import { App } from "./App";
 import { AuthenticatedContext } from "./auth/AuthenticatedContext";
 import { resolveAuthentication } from "./auth/resolveAuthentication";
 import { Environment, getConfig } from "./config/config";
+import type { PublicUIConfig } from "./types";
+import type { BootstrapData } from "./types/main";
 
 async function bootstrap() {
   const configuration = getConfig();
@@ -23,13 +27,29 @@ async function bootstrap() {
     await setUpMockedBackend();
   }
 
+  // Fire the public configuration fetch immediately. It does not require any
+  // authentication to work.
+  const publicConfigPromise: Promise<PublicUIConfig> =
+    getPublicUIConfiguration();
+
   // Resolve the visitor's authentication status.
   const authenticatedContextValue = await resolveAuthentication(configuration);
 
+  // Store the promises in the bootstrap data. Getting the user data can only
+  // be done if the user is authenticated, that is why we add the check for
+  // it.
+  const bootstrapData: BootstrapData = {
+    publicConfig: publicConfigPromise,
+    ...(authenticatedContextValue.authenticated && {
+      signupData: getSignupData(),
+    }),
+  };
+
+  // Create our application.
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <AuthenticatedContext.Provider value={authenticatedContextValue}>
-        <App />
+        <App bootstrapData={bootstrapData} />
       </AuthenticatedContext.Provider>
     </StrictMode>,
   );

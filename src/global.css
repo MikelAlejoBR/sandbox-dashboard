@@ -1,4 +1,40 @@
+@import "@rhds/tokens/css/global.css";
+
 /* Make sure that the ReCaptcha badge stays on top. */
 .grecaptcha-badge {
   z-index: 9999 !important;
+}
+
+.rh-hat-tip #hat-group {
+  transition: transform 0.3s ease;
+  transform-origin: 95px 151px;
+}
+
+.rh-hat-tip:hover #hat-group {
+  transform: rotate(15deg);
+}
+
+/*
+ * The "Browser support" footer link is a button, not an anchor, because it
+ * triggers a modal rather than navigating. The rh-footer lightdom stylesheet
+ * only targets <a> elements, so we replicate its link styles here. Offsets
+ * are slightly smaller than the <a> equivalents to compensate for the
+ * different baseline position of <button> elements.
+ */
+:is(rh-footer, rh-footer-universal) .rh-footer-link-button {
+  all: unset;
+  cursor: pointer;
+  color: var(--rh-color-text-primary);
+  font: inherit;
+  text-decoration: underline var(--rh-border-width-sm, 1px) dashed;
+  text-decoration-color: transparent;
+  text-underline-offset: max(4px, 0.23em);
+  transition: text-underline-offset 0.3s ease;
+}
+
+:is(rh-footer, rh-footer-universal) .rh-footer-link-button:hover,
+:is(rh-footer, rh-footer-universal)
+  .rh-footer-link-button:is(:focus, :focus-within) {
+  text-decoration-color: inherit;
+  text-underline-offset: max(5px, 0.28em);
 }

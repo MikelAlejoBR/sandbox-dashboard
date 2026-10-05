@@ -1,0 +1,461 @@
+.landing-page {
+  color-scheme: dark;
+  font-family: var(--rh-font-family-body-text);
+  height: 100dvh;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.landing-page :is(h1, h2, h3, h4) {
+  font-family: var(--rh-font-family-heading);
+}
+
+.landing-hero {
+  align-items: center;
+  background-color: var(--rh-color-surface-darkest);
+  color: var(--rh-color-text-primary-on-dark);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: var(--rh-space-3xl);
+  position: relative;
+  text-align: center;
+}
+
+.landing-hero::before {
+  background-image: url("../../assets/images/landing/devsandbox.webp");
+  background-position: center;
+  background-size: cover;
+  content: "";
+  filter: blur(10px);
+  inset: 0;
+  opacity: 0.3;
+  position: absolute;
+  z-index: 0;
+}
+
+.landing-hero__logo {
+  left: var(--rh-space-3xl);
+  position: absolute;
+  top: var(--rh-space-2xl);
+  height: 50px;
+  z-index: 1;
+}
+
+.landing-hero__logo path,
+.landing-hero__logo text {
+  fill: #fff;
+}
+
+.landing-hero__logo #hat {
+  fill: var(--rh-color-brand-red);
+}
+
+.landing-hero__logo #band {
+  fill: #000;
+}
+
+.landing-hero__content {
+  max-width: 821px;
+  position: relative;
+  z-index: 1;
+}
+
+.landing-hero__title {
+  font-size: var(--rh-font-size-heading-2xl);
+  font-weight: bold;
+  line-height: var(--rh-line-height-heading);
+  margin-bottom: var(--rh-space-xl);
+}
+
+.landing-hero__title--rh {
+  color: var(--rh-color-brand-red);
+  text-shadow: 0px 0px 50px var(--rh-color-brand-red);
+}
+
+.landing-hero__subtitle {
+  color: var(--rh-color-text-secondary-on-dark);
+  font-size: var(--rh-font-size-body-text-xl);
+  line-height: var(--rh-line-height-body-text);
+  margin: 0 auto var(--rh-space-2xl);
+  max-width: 560px;
+}
+
+.landing-hero__cta-row {
+  display: flex;
+  gap: var(--rh-space-lg);
+  justify-content: center;
+}
+
+.landing-hero__section-links {
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.21);
+  border-radius: var(--rh-border-radius-default);
+  bottom: var(--rh-space-4xl);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.21);
+  display: flex;
+  gap: var(--rh-space-lg);
+  padding: var(--rh-space-md) var(--rh-space-xl);
+  position: absolute;
+  z-index: 1;
+}
+
+.landing-hero__section-separator {
+  color: var(--rh-color-brand-red);
+  font-size: var(--rh-font-size-body-text-lg);
+  font-weight: bold;
+  line-height: 1;
+  padding: 0 var(--rh-space-sm);
+}
+
+.landing-hero__section-link {
+  color: var(--rh-color-text-primary-on-dark);
+  font-size: var(--rh-font-size-body-text-md);
+  text-decoration: none;
+  transition:
+    color 0.3s ease,
+    text-decoration-color 0.3s ease,
+    text-underline-offset 0.3s ease;
+}
+
+.landing-hero__section-link:hover,
+.landing-hero__section-link:focus {
+  color: var(--rh-color-interactive-primary);
+  text-decoration: underline var(--rh-border-width-sm, 1px) dashed;
+  text-decoration-color: inherit;
+  text-underline-offset: max(5px, 0.28em);
+}
+
+@keyframes landing-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+/*
+ * Bouncing chevron that hints users can scroll down. Positioned
+ * between the hero CTA and the section-links bar, using the
+ * existing landing-bounce keyframe.
+ */
+.landing-hero__scroll-hint {
+  animation: landing-bounce 2s ease-in-out infinite;
+  bottom: var(--rh-space-2xl);
+  display: block;
+  height: 14px;
+  position: absolute;
+  width: 14px;
+  z-index: 1;
+}
+
+.landing-hero__scroll-hint::before {
+  border-bottom: 2px solid var(--rh-color-text-secondary-on-dark);
+  border-left: 2px solid var(--rh-color-text-secondary-on-dark);
+  content: "";
+  display: block;
+  height: 100%;
+  transform: rotate(-45deg);
+  transition: border-color 0.2s ease;
+  width: 100%;
+}
+
+.landing-hero__scroll-hint:hover::before,
+.landing-hero__scroll-hint:focus::before {
+  border-color: var(--rh-color-brand-red);
+}
+
+.landing-section {
+  background-color: var(--rh-color-surface-darker);
+  color: var(--rh-color-text-primary-on-dark);
+  padding: var(--rh-space-5xl) var(--rh-space-3xl);
+}
+
+.landing-section__content {
+  margin: 0 auto;
+  max-width: 1200px;
+}
+
+.landing-section--dark {
+  background-color: var(--rh-color-surface-darkest);
+}
+
+.landing-section__heading {
+  font-size: var(--rh-font-size-heading-md);
+  font-weight: bold;
+  margin-bottom: var(--rh-space-lg);
+  text-align: center;
+}
+
+.landing-section__subheading {
+  color: var(--rh-color-text-secondary-on-dark);
+  font-size: var(--rh-font-size-body-text-lg);
+  margin: 0 auto var(--rh-space-3xl);
+  max-width: 600px;
+  text-align: center;
+}
+
+.landing-product-grid {
+  display: grid;
+  gap: var(--rh-space-lg);
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.landing-product-tile {
+  align-items: center;
+  background-color: var(--rh-color-surface-darker);
+  border: 1px solid var(--rh-color-border-subtle-on-darker);
+  border-radius: var(--rh-border-radius-default);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rh-space-md);
+  padding: var(--rh-space-2xl) var(--rh-space-lg);
+  text-align: center;
+}
+
+.landing-product-tile__icon {
+  height: 48px;
+  width: 48px;
+}
+
+.landing-product-tile__title {
+  font-size: var(--rh-font-size-body-text-md);
+  font-weight: 600;
+}
+
+.landing-product-tile__desc {
+  color: var(--rh-color-text-secondary-on-dark);
+  font-size: var(--rh-font-size-body-text-sm);
+  line-height: var(--rh-line-height-body-text);
+}
+
+.landing-timeline {
+  display: flex;
+  gap: var(--rh-space-3xl);
+  justify-content: center;
+  position: relative;
+}
+
+/*
+ * Red line segments drawn from each dot. Each step draws an
+ * ::after from its center rightward (half the step + the gap),
+ * and steps after the first draw a ::before from the left edge
+ * to their center. Together they form a continuous line from
+ * dot 1 through dot 3 and into the rocket, and they always
+ * track the flex layout regardless of zoom or viewport width.
+ */
+.landing-timeline__step::after {
+  background-color: var(--rh-color-brand-red);
+  content: "";
+  height: 2px;
+  left: 50%;
+  position: absolute;
+  top: 24px;
+  width: calc(50% + var(--rh-space-3xl));
+}
+
+.landing-timeline__step ~ .landing-timeline__step::before {
+  background-color: var(--rh-color-brand-red);
+  content: "";
+  height: 2px;
+  left: 0;
+  position: absolute;
+  top: 24px;
+  width: 50%;
+}
+
+.landing-timeline__step {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--rh-space-md);
+  max-width: 240px;
+  position: relative;
+  text-align: center;
+}
+
+.landing-timeline__dot {
+  align-items: center;
+  background-color: var(--rh-color-brand-red);
+  border: 3px solid var(--rh-color-surface-darkest);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--rh-color-brand-red);
+  color: var(--rh-color-text-primary-on-dark);
+  display: flex;
+  font-family: var(--rh-font-family-heading);
+  font-size: var(--rh-font-size-body-text-md);
+  font-weight: bold;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+  z-index: 1;
+}
+
+.landing-timeline__title {
+  font-weight: 600;
+  margin: 0;
+}
+
+.landing-timeline__destination {
+  position: absolute;
+  right: 0;
+  top: 0;
+}
+
+/*
+ * Bridge the gap between step 3's line and the rocket.
+ * The rocket is now absolutely positioned at the right edge,
+ * so the bridge must be wide enough to overlap with step 3's
+ * outgoing line segment.
+ */
+.landing-timeline__destination::before {
+  background-color: var(--rh-color-brand-red);
+  content: "";
+  height: 2px;
+  position: absolute;
+  right: 50%;
+  top: 24px;
+  width: calc(50% + 400px);
+}
+
+.landing-timeline__rocket {
+  height: 210px;
+  object-fit: contain;
+  transform: translateY(-75px);
+}
+
+.landing-faq {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--rh-space-3xl);
+}
+
+.landing-faq__mascot {
+  flex-shrink: 0;
+  height: 200px;
+  object-fit: contain;
+}
+
+.landing-faq__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rh-space-2xl);
+}
+
+.landing-faq__item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rh-space-sm);
+}
+
+.landing-faq__question {
+  align-items: center;
+  display: flex;
+  font-weight: 600;
+  gap: var(--rh-space-md);
+  margin: 0;
+}
+
+.landing-faq__icon {
+  color: var(--rh-color-brand-red);
+  flex-shrink: 0;
+}
+
+.landing-faq__answer {
+  color: var(--rh-color-text-secondary-on-dark);
+  line-height: var(--rh-line-height-body-text);
+  margin: 0;
+  padding-left: calc(1em + var(--rh-space-md));
+}
+
+.landing-cta {
+  background: linear-gradient(
+    to bottom,
+    var(--rh-color-surface-darker) 50%,
+    var(--rh-color-surface-darkest)
+  );
+  color: var(--rh-color-text-primary-on-dark);
+  padding: var(--rh-space-7xl) var(--rh-space-3xl);
+  text-align: center;
+}
+
+.landing-cta__content {
+  margin: 0 auto;
+  max-width: 600px;
+}
+
+.landing-cta__heading {
+  font-size: var(--rh-font-size-heading-lg);
+  font-weight: bold;
+  margin-bottom: var(--rh-space-lg);
+}
+
+.landing-cta__subtitle {
+  color: var(--rh-color-text-secondary-on-dark);
+  margin-bottom: var(--rh-space-2xl);
+}
+
+@media (max-width: 992px) {
+  .landing-hero {
+    min-height: 80dvh;
+  }
+
+  .landing-hero__title {
+    font-size: var(--rh-font-size-heading-lg);
+  }
+
+  .landing-product-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .landing-timeline {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .landing-timeline__step::after,
+  .landing-timeline__step ~ .landing-timeline__step::before {
+    display: none;
+  }
+
+  .landing-timeline__destination {
+    display: none;
+  }
+
+  .landing-faq {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-hero {
+    padding: var(--rh-space-5xl) var(--rh-space-xl);
+  }
+
+  .landing-hero__logo {
+    left: var(--rh-space-xl);
+    top: var(--rh-space-xl);
+  }
+
+  .landing-hero__cta-row {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .landing-section {
+    padding: var(--rh-space-3xl) var(--rh-space-xl);
+  }
+
+  .landing-cta {
+    padding: var(--rh-space-5xl) var(--rh-space-xl);
+  }
+
+  .landing-product-grid {
+    grid-template-columns: 1fr;
+  }
+}

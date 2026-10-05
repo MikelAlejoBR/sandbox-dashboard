@@ -4,7 +4,13 @@ import { type Product, ProductType } from "../../types/product";
 import useTriedProducts from "../useTriedProducts";
 
 function makeProduct(type: ProductType): Product {
-  return { type, title: type, image: "", description: [] };
+  return {
+    type,
+    title: type,
+    image: "",
+    description: [],
+    landingPage: {},
+  };
 }
 
 const openshiftConsole = makeProduct(ProductType.OPENSHIFT_CONSOLE);
