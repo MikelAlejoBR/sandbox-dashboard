@@ -15,6 +15,7 @@ import { MEDIUM_INTERVAL, SHORT_INTERVAL, SUPPORT_EMAIL } from "../const";
 import { ApiError } from "../error/ApiError";
 import { UserFacingError } from "../error/UserFacingError";
 import { type User } from "../types";
+import type { BootstrapData } from "../types/main";
 import { errorMessage } from "../utils/common";
 import logger from "../utils/logger";
 import {
@@ -27,7 +28,13 @@ import { UserContext } from "./UserContext";
 import { useRecaptcha } from "./useRecaptcha";
 import { UserSignupPhase } from "./userSignupPhase";
 
-export function UserProvider({ children }: { children: ReactNode }) {
+export function UserProvider({
+  children,
+  bootstrapData,
+}: {
+  children: ReactNode;
+  bootstrapData: BootstrapData;
+}) {
   const config = getConfig();
   const isProd = config.environment === Environment.PRODUCTION;
   useRecaptcha(isProd);
@@ -91,26 +98,26 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Fetches the user's signup data, critical for the application to work.
+   * Processes the result from fetching the user signup by updating the user
+   * state and the signup phase. Skips the update if the user signup has not
+   * changed from the previous fetch, or if the signal has been aborted.
    */
-  const fetchUser = useCallback(
-    async (signal?: AbortSignal): Promise<void> => {
-      const result: User | undefined = await getSignupData(signal);
-
+  const processSignupResult = useCallback(
+    (result: User | undefined, abortSignal?: AbortSignal) => {
       // Make sure that the user has changed before changing the state and
       // scheduling a rerender.
       if (JSON.stringify(userRef.current) !== JSON.stringify(result)) {
-        if (signal?.aborted) {
+        if (abortSignal?.aborted) {
           return;
         }
         userRef.current = result;
-        if (signal?.aborted) {
+        if (abortSignal?.aborted) {
           return;
         }
         setUser(result);
       }
 
-      if (signal?.aborted) {
+      if (abortSignal?.aborted) {
         return;
       }
       updateSignupPhase(
@@ -118,6 +125,17 @@ export function UserProvider({ children }: { children: ReactNode }) {
       );
     },
     [updateSignupPhase],
+  );
+
+  /**
+   * Fetches the user's signup data, critical for the application to work.
+   */
+  const fetchUser = useCallback(
+    async (signal?: AbortSignal): Promise<void> => {
+      const result: User | undefined = await getSignupData(signal);
+      processSignupResult(result, signal);
+    },
+    [processSignupResult],
   );
 
   /**
@@ -213,13 +231,39 @@ export function UserProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     const controller = new AbortController();
 
-    withRetry(
-      () => fetchUser(controller.signal),
-      3,
-      3_000,
-      isTransient,
-      controller.signal,
-    ).catch((error) => {
+    const doInitialFetch = async () => {
+      try {
+        // Try the bootstrapped promise first if we have one.
+        if (bootstrapData.signupData) {
+          const userSignup = await bootstrapData.signupData;
+          if (cancelled) {
+            return;
+          }
+
+          // Process the user signup.
+          processSignupResult(userSignup, controller.signal);
+          return;
+        }
+      } catch {
+        // The bootstrap fetch failed, which is fine. Fall through to the
+        // regular fetching with tries.
+        if (cancelled) {
+          return;
+        }
+      }
+
+      // At this point either there was no bootstrap promise or it failed.
+      // We fall back to the fetch-with-retry logic.
+      await withRetry(
+        () => fetchUser(controller.signal),
+        3,
+        3_000,
+        isTransient,
+        controller.signal,
+      );
+    };
+
+    doInitialFetch().catch((error) => {
       if (cancelled) {
         return;
       }
@@ -234,7 +278,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       controller.abort();
     };
-  }, [addAlertFromError, isUserAuthenticated, fetchUser, updateSignupPhase]);
+  }, [
+    addAlertFromError,
+    bootstrapData.signupData,
+    isUserAuthenticated,
+    fetchUser,
+    processSignupResult,
+    updateSignupPhase,
+  ]);
 
   // Determine if we should be polling to fetch the latest user data.
   const shouldBePolling = useMemo<boolean>(() => {

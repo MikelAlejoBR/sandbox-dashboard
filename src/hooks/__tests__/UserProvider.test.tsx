@@ -9,6 +9,7 @@ import {
 } from "../../auth/AuthenticatedContext";
 import { SUPPORT_EMAIL } from "../../const";
 import { server } from "../../mocks/server";
+import type { BootstrapData } from "../../types/main";
 import { NotificationProvider } from "../NotificationProvider";
 import { useUserContext } from "../UserContext";
 import { UserProvider } from "../UserProvider";
@@ -47,10 +48,14 @@ function ContextConsumer() {
 function renderProvider(
   authValue: AuthenticatedContextValue = authenticatedValue,
 ) {
+  const bootstrapData: BootstrapData = {
+    publicConfig: Promise.resolve({ disabledIntegrations: [] }),
+  };
+
   return render(
     <AuthenticatedContext.Provider value={authValue}>
       <NotificationProvider>
-        <UserProvider>
+        <UserProvider bootstrapData={bootstrapData}>
           <ContextConsumer />
         </UserProvider>
       </NotificationProvider>

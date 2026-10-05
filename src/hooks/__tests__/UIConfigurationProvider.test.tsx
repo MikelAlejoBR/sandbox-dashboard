@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 
 import { server } from "../../mocks/server";
+import type { BootstrapData } from "../../types/main";
 import { ProductType } from "../../types/product";
 import { usePublicConfigurationContext } from "../PublicConfigurationContext";
 import { PublicConfigurationProvider } from "../PublicConfigurationProvider";
@@ -34,6 +35,19 @@ beforeAll(() => {
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
+/**
+ * Rejects so that the provider falls back to fetching the configuration
+ * from the API, which is what we want to test through MSW. The catch
+ * handler prevents Node from reporting an unhandled rejection while
+ * the promise remains rejected for consumers that await it.
+ */
+const rejectingPublicConfig = Promise.reject(new Error("test: skip bootstrap"));
+rejectingPublicConfig.catch(() => {});
+
+const bootstrapData: BootstrapData = {
+  publicConfig: rejectingPublicConfig,
+};
+
 describe("PublicConfigurationProvider", () => {
   it("starts in the loading state", () => {
     server.use(
@@ -43,7 +57,7 @@ describe("PublicConfigurationProvider", () => {
     );
 
     render(
-      <PublicConfigurationProvider>
+      <PublicConfigurationProvider bootstrapData={bootstrapData}>
         <ContextConsumer />
       </PublicConfigurationProvider>,
     );
@@ -64,7 +78,7 @@ describe("PublicConfigurationProvider", () => {
     );
 
     render(
-      <PublicConfigurationProvider>
+      <PublicConfigurationProvider bootstrapData={bootstrapData}>
         <ContextConsumer />
       </PublicConfigurationProvider>,
     );
@@ -86,7 +100,7 @@ describe("PublicConfigurationProvider", () => {
     );
 
     render(
-      <PublicConfigurationProvider>
+      <PublicConfigurationProvider bootstrapData={bootstrapData}>
         <ContextConsumer />
       </PublicConfigurationProvider>,
     );
@@ -107,7 +121,7 @@ describe("PublicConfigurationProvider", () => {
     );
 
     render(
-      <PublicConfigurationProvider>
+      <PublicConfigurationProvider bootstrapData={bootstrapData}>
         <ContextConsumer />
       </PublicConfigurationProvider>,
     );

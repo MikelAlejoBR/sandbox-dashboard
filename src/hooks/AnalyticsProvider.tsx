@@ -235,7 +235,12 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const trackAnalytics = useCallback(
     (
       itemNameOrProduct: string | Product,
-      section: "Catalog" | "Activities" | "Support" | "Verification",
+      section:
+        | "Catalog"
+        | "Activities"
+        | "Landing"
+        | "Support"
+        | "Verification",
       href?: string,
       linkType: "cta" | "default" = "default",
     ) => {

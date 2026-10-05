@@ -6,7 +6,7 @@ const mockWriteText = vi.fn();
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.useFakeTimers({ shouldAdvanceTime: true });
+  vi.useFakeTimers();
 
   Object.defineProperty(navigator, "clipboard", {
     value: { writeText: mockWriteText },

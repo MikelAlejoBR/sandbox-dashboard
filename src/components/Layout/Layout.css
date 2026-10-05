@@ -1,8 +1,0 @@
-.rh-logo #hat-group {
-  transition: transform 0.3s ease;
-  transform-origin: 95px 151px;
-}
-
-.rh-logo:hover #hat-group {
-  transform: rotate(15deg);
-}

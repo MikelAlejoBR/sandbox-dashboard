@@ -27,6 +27,10 @@ export const products: Product[] = [
     title: "OpenShift",
     image: OpenShiftIcon,
     urlTemplate: "{{consoleURL}}/k8s/cluster/projects/{{defaultUserNamespace}}",
+    landingPage: {
+      productDescription:
+        "Comprehensive cloud-native application platform for developing, deploying and managing containerized applications.",
+    },
     description: [
       {
         bulletPoint: "Comprehensive cloud-native application platform",
@@ -48,6 +52,10 @@ export const products: Product[] = [
     title: "OpenShift AI",
     image: OpenShiftAIIcon,
     urlTemplate: "{{rhodsMemberURL}}",
+    landingPage: {
+      productDescription:
+        "Flexible hybrid cloud platform to deploy open weight models and autonomous agents at scale.",
+    },
     description: [
       {
         bulletPoint: "Scalable AI and ML platform",
@@ -93,6 +101,10 @@ export const products: Product[] = [
 
       return `https://devspaces${urlTemplateVars.consoleURL.substring(index)}`;
     },
+    landingPage: {
+      productDescription:
+        "Consistent, secure and zero-configuration cloud development environment for teams.",
+    },
     description: [
       {
         bulletPoint: "Cloud Development Environment",
@@ -115,6 +127,10 @@ export const products: Product[] = [
     type: ProductType.AAP,
     title: "Ansible Automation Platform",
     image: AnsibleIcon,
+    landingPage: {
+      productDescription:
+        "Scalable, centralized and enterprise-grade framework for IT automation.",
+    },
     description: [
       {
         bulletPoint: "Scalable, centralized automation solution",
@@ -140,6 +156,10 @@ export const products: Product[] = [
     image: OpenshiftVirtualizationIcon,
     urlTemplate:
       "{{consoleURL}}/k8s/ns/{{defaultUserNamespace}}/virtualization-overview",
+    landingPage: {
+      productDescription:
+        "A unified platform that lets you migrate, run and manage traditional virtual machines along with the power of OpenShift's container orchestration platform.",
+    },
     description: [
       {
         bulletPoint: "Migrate traditional VM workloads to OpenShift",
@@ -160,6 +180,9 @@ export const products: Product[] = [
     type: ProductType.OPENCLAW,
     title: "OpenClaw",
     image: OpenClawIcon,
+    landingPage: {
+      isShownInLandingPage: false,
+    },
     description: [
       {
         bulletPoint: "Personal AI assistant running on your cluster",
@@ -184,6 +207,9 @@ export const products: Product[] = [
     type: ProductType.RHDH,
     title: "Red Hat Developer Hub",
     image: RHDHIcon,
+    landingPage: {
+      productDescription: "Enterprise-grade internal developer portal.",
+    },
     resolveURL: (urlTemplateVars: URLTemplateVars): string => {
       // Derive RHDH's URL from the cluster's URL.
       //
