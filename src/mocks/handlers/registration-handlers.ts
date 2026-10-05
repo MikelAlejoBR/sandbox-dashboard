@@ -107,7 +107,10 @@ export const registrationMockHandlers: RequestHandler[] = [
 
   http.post("*/api/v1/signup", () => {
     if (getPlaywrightOverrides()?.__signup__?.__forceSignupError__) {
-      return new HttpResponse(null, { status: 500 });
+      return HttpResponse.json(
+        { message: "forced signup error" },
+        { status: 500 },
+      );
     }
 
     userSignupState.scheduleTransition(UserSignupPhase.READY);
