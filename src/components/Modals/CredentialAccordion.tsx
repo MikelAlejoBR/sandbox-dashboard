@@ -1,3 +1,5 @@
+import "./CredentialAccordion.css";
+
 import {
   Accordion,
   AccordionContent,
@@ -337,24 +339,21 @@ export const CredentialAccordion = forwardRef<
                       </Content>
                     </FlexItem>
                   )}
-                  {(entries.length > 1 || hasProvider) && (
-                    <FlexItem>
-                      <Tooltip content="Delete credential">
-                        <Button
-                          variant="plain"
-                          aria-label="Delete credential"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteEntry(entry.id);
-                          }}
-                        >
-                          <TrashIcon />
-                        </Button>
-                      </Tooltip>
-                    </FlexItem>
-                  )}
                 </Flex>
               </AccordionToggle>
+              {(entries.length > 1 || hasProvider) && (
+                <div className="credential-accordion-item__delete">
+                  <Tooltip content="Delete credential">
+                    <Button
+                      variant="plain"
+                      aria-label="Delete credential"
+                      onClick={() => handleDeleteEntry(entry.id)}
+                    >
+                      <TrashIcon />
+                    </Button>
+                  </Tooltip>
+                </div>
+              )}
               <AccordionContent>
                 {!hasProvider && (
                   <SelectProvider

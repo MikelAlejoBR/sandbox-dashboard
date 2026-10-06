@@ -53,8 +53,18 @@ vi.mock("../../mocks/browser", () => ({
   mockAuthenticatedContext: vi.fn(),
 }));
 
+vi.mock("../../utils/logger", () => ({
+  default: {
+    error: vi.fn(),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+  },
+}));
+
 import { mockAuthenticatedContext } from "../../mocks/browser";
 import { deleteCookie, getCookie } from "../../utils/cookie-utils";
+import logger from "../../utils/logger";
 import initializeKeycloak, {
   createAndConfigureKeycloak,
 } from "../initializeKeycloak";
@@ -242,16 +252,13 @@ describe("resolveAuthentication", () => {
       }
     });
 
-    it("logs the error to the console", async () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+    it("logs the error via the logger", async () => {
       vi.mocked(getCookie).mockReturnValue("true");
       setLocation("https://sandbox.redhat.com/");
 
       await resolveAuthentication(productionConfig);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         "Authentication failed:",
         authError,
       );
@@ -333,17 +340,14 @@ describe("resolveAuthentication", () => {
       }
     });
 
-    it("logs the OIDC error to the console", async () => {
-      const consoleSpy = vi
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
+    it("logs the OIDC error via the logger", async () => {
       setLocation(
         "https://sandbox.redhat.com/#error=access_denied&error_description=Denied",
       );
 
       await resolveAuthentication(productionConfig);
 
-      expect(consoleSpy).toHaveBeenCalledWith(
+      expect(logger.error).toHaveBeenCalledWith(
         "OIDC error:",
         "access_denied",
         "Denied",
