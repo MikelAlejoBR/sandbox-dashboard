@@ -227,7 +227,7 @@ describe("AnsibleCatalogCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("provisions on the fast path when activation is still active at READY", () => {
+  it("provisions on the fast path when activation is still active at READY", async () => {
     mockUserActivation(true);
     vi.useFakeTimers();
     const provisionInstance = vi.fn().mockResolvedValue(undefined);
@@ -250,7 +250,7 @@ describe("AnsibleCatalogCard", () => {
       { provisionInstance, instanceStatus: { kind: "new" } },
     );
 
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(SIGNUP_WATCHER_INTERVAL_MS);
     });
 

@@ -1,6 +1,7 @@
 import type { AppConfig } from "../config/config";
 import { Environment } from "../config/config";
 import { deleteCookie, getCookie } from "../utils/cookie-utils";
+import logger from "../utils/logger";
 import type { AuthenticatedContextValue } from "./AuthenticatedContext";
 import initializeKeycloak, {
   createAndConfigureKeycloak,
@@ -99,7 +100,7 @@ export async function resolveAuthentication(
       // and fall back to the unauthenticated landing page so the user
       // can try again. A fresh Keycloak instance is created because
       // the previous one may be in a partially initialized state.
-      console.error("Authentication failed:", err);
+      logger.error("Authentication failed:", err);
       deleteCookie(SESSION_HINT_COOKIE_NAME);
 
       const freshKeycloakPromise = createAndConfigureKeycloak(configuration);
@@ -130,7 +131,7 @@ export async function resolveAuthentication(
     // The SSO server returned an error instead of an auth code. Skip
     // initializeKeycloak entirely to avoid triggering another login
     // redirect, clear the hint cookie, and surface the error.
-    console.error("OIDC error:", oidcError, oidcErrorDescription);
+    logger.error("OIDC error:", oidcError, oidcErrorDescription);
     deleteCookie(SESSION_HINT_COOKIE_NAME);
     return {
       authenticated: false,
