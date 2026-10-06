@@ -296,7 +296,7 @@ describe("getUIConfig", () => {
 describe("getPublicUIConfiguration", () => {
   it("should return public config with disabledIntegrations", async () => {
     server.use(
-      http.get(`${REG_URL}/api/v1/uiconfig-public`, () => {
+      http.get(`${REG_URL}/api/v1/uiconfig/public`, () => {
         return HttpResponse.json({
           disabledIntegrations: ["openshift-console", "devspaces"],
         });
@@ -312,7 +312,7 @@ describe("getPublicUIConfiguration", () => {
 
   it("should return empty disabledIntegrations array", async () => {
     server.use(
-      http.get(`${REG_URL}/api/v1/uiconfig-public`, () => {
+      http.get(`${REG_URL}/api/v1/uiconfig/public`, () => {
         return HttpResponse.json({ disabledIntegrations: [] });
       }),
     );
@@ -323,7 +323,7 @@ describe("getPublicUIConfiguration", () => {
 
   it("should throw on unsuccessful response", async () => {
     server.use(
-      http.get(`${REG_URL}/api/v1/uiconfig-public`, () => {
+      http.get(`${REG_URL}/api/v1/uiconfig/public`, () => {
         return new HttpResponse(null, { status: 500 });
       }),
     );

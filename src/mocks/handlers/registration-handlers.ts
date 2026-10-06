@@ -156,7 +156,7 @@ export const registrationMockHandlers: RequestHandler[] = [
     return new HttpResponse(segmentWriteKeyFixture);
   }),
 
-  http.get("*/api/v1/uiconfig-public", () => {
+  http.get("*/api/v1/uiconfig/public", () => {
     const disabledIntegrations =
       getPlaywrightOverrides()?.__uiconfig__?.__disabledIntegrations__;
     return HttpResponse.json({

@@ -51,7 +51,7 @@ const bootstrapData: BootstrapData = {
 describe("PublicConfigurationProvider", () => {
   it("starts in the loading state", () => {
     server.use(
-      http.get("https://registration.example.com/api/v1/uiconfig-public", () =>
+      http.get("https://registration.example.com/api/v1/uiconfig/public", () =>
         HttpResponse.json({ disabledIntegrations: [] }),
       ),
     );
@@ -67,7 +67,7 @@ describe("PublicConfigurationProvider", () => {
 
   it("fetches disabled integrations from public UI config", async () => {
     server.use(
-      http.get("https://registration.example.com/api/v1/uiconfig-public", () =>
+      http.get("https://registration.example.com/api/v1/uiconfig/public", () =>
         HttpResponse.json({
           disabledIntegrations: [
             "ansible-automation-platform",
@@ -94,7 +94,7 @@ describe("PublicConfigurationProvider", () => {
 
   it("returns an empty set when no integrations are disabled", async () => {
     server.use(
-      http.get("https://registration.example.com/api/v1/uiconfig-public", () =>
+      http.get("https://registration.example.com/api/v1/uiconfig/public", () =>
         HttpResponse.json({ disabledIntegrations: [] }),
       ),
     );
@@ -115,7 +115,7 @@ describe("PublicConfigurationProvider", () => {
   it("falls back to an empty set when the fetch fails", async () => {
     server.use(
       http.get(
-        "https://registration.example.com/api/v1/uiconfig-public",
+        "https://registration.example.com/api/v1/uiconfig/public",
         () => new HttpResponse(null, { status: 500 }),
       ),
     );

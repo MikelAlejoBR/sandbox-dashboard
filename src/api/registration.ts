@@ -179,7 +179,7 @@ export async function getSegmentWriteKey(): Promise<string> {
  * @returns the public configuration for unauthenticated users.
  */
 export async function getPublicUIConfiguration(): Promise<PublicUIConfig> {
-  const response = await fetch(`${getBaseURL()}/uiconfig-public`, {
+  const response = await fetch(`${getBaseURL()}/uiconfig/public`, {
     method: "GET",
   });
 
