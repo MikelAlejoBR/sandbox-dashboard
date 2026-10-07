@@ -91,6 +91,8 @@ beforeEach(() => {
 
   // resetAllMocks clears both call history and implementation, so
   // every mock must be re-configured here for a clean slate.
+  mockKeycloakInstance.init.mockResolvedValue(true);
+  mockFreshKeycloakInstance.init.mockResolvedValue(true);
   vi.mocked(createAndConfigureKeycloak).mockResolvedValue(
     mockKeycloakInstance as never,
   );
@@ -240,6 +242,20 @@ describe("resolveAuthentication", () => {
       }
     });
 
+    it("does not reinitialize the fresh Keycloak instance when login is called twice", async () => {
+      vi.mocked(getCookie).mockReturnValue("true");
+      setLocation("https://sandbox.redhat.com/");
+
+      const result = await resolveAuthentication(productionConfig);
+
+      if (!result.authenticated) {
+        await result.login();
+        await result.login();
+        expect(mockFreshKeycloakInstance.init).toHaveBeenCalledTimes(1);
+        expect(mockFreshKeycloakInstance.login).toHaveBeenCalledTimes(2);
+      }
+    });
+
     it("stringifies non-Error exceptions", async () => {
       vi.mocked(initializeKeycloak).mockRejectedValue("raw string error");
       vi.mocked(getCookie).mockReturnValue("true");
@@ -340,6 +356,19 @@ describe("resolveAuthentication", () => {
       }
     });
 
+    it("does not reinitialize Keycloak when login is called twice", async () => {
+      setLocation("https://sandbox.redhat.com/#error=access_denied");
+
+      const result = await resolveAuthentication(productionConfig);
+
+      if (!result.authenticated) {
+        await result.login();
+        await result.login();
+        expect(mockKeycloakInstance.init).toHaveBeenCalledTimes(1);
+        expect(mockKeycloakInstance.login).toHaveBeenCalledTimes(2);
+      }
+    });
+
     it("logs the OIDC error via the logger", async () => {
       setLocation(
         "https://sandbox.redhat.com/#error=access_denied&error_description=Denied",
@@ -397,6 +426,47 @@ describe("resolveAuthentication", () => {
       if (!result.authenticated) {
         await result.login();
         expect(mockKeycloakInstance.login).toHaveBeenCalled();
+      }
+    });
+
+    it("does not reinitialize Keycloak when login is called twice", async () => {
+      const result = await resolveAuthentication(productionConfig);
+
+      if (!result.authenticated) {
+        await result.login();
+        await result.login();
+        expect(mockKeycloakInstance.init).toHaveBeenCalledTimes(1);
+        expect(mockKeycloakInstance.login).toHaveBeenCalledTimes(2);
+      }
+    });
+
+    it("shares the init() promise when login is called concurrently", async () => {
+      let resolveInit!: (value: boolean) => void;
+      mockKeycloakInstance.init.mockReturnValue(
+        new Promise<boolean>((resolve) => {
+          resolveInit = resolve;
+        }),
+      );
+
+      const result = await resolveAuthentication(productionConfig);
+
+      if (!result.authenticated) {
+        const first = result.login();
+        const second = result.login();
+
+        // Wait until init has actually been called before resolving,
+        // so that both login calls are truly in-flight while
+        // initialization is pending.
+        await vi.waitFor(() => {
+          expect(mockKeycloakInstance.init).toHaveBeenCalled();
+        });
+
+        resolveInit(true);
+        await first;
+        await second;
+
+        expect(mockKeycloakInstance.init).toHaveBeenCalledTimes(1);
+        expect(mockKeycloakInstance.login).toHaveBeenCalledTimes(2);
       }
     });
 
