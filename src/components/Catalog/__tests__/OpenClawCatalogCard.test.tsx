@@ -1,21 +1,10 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { AnalyticsContext } from "../../../hooks/AnalyticsContext";
 import { NotificationProvider } from "../../../hooks/NotificationProvider";
 import type { OpenClawContextType } from "../../../hooks/OpenClawContext";
 import { OpenClawContext } from "../../../hooks/OpenClawContext";
-import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
-import { mockUserActivation } from "../../../hooks/signupAction/__tests__/userActivationTestHelpers";
-import { SignupActionProvider } from "../../../hooks/signupAction/SignupActionProvider";
-import { SIGNUP_WATCHER_INTERVAL_MS } from "../../../hooks/signupAction/signupActionUtils";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
 import { UserSignupPhase } from "../../../hooks/userSignupPhase";
@@ -44,26 +33,19 @@ function renderCardTree(
   sandboxCtx: UserContextType,
   openClawCtx: OpenClawContextType,
   markProductAsTried: (product: Product) => void,
-  openPhoneVerificationModal: () => void,
 ) {
   return (
     <NotificationProvider>
       <UserContext.Provider value={sandboxCtx}>
-        <SignupActionProvider>
-          <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
-            <OpenClawContext.Provider value={openClawCtx}>
-              <PhoneVerificationContext.Provider
-                value={{ openPhoneVerificationModal }}
-              >
-                <OpenClawCatalogCard
-                  product={openclawProduct}
-                  isGreenCornerVisible={false}
-                  markProductAsTried={markProductAsTried}
-                />
-              </PhoneVerificationContext.Provider>
-            </OpenClawContext.Provider>
-          </AnalyticsContext.Provider>
-        </SignupActionProvider>
+        <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
+          <OpenClawContext.Provider value={openClawCtx}>
+            <OpenClawCatalogCard
+              product={openclawProduct}
+              isGreenCornerVisible={false}
+              markProductAsTried={markProductAsTried}
+            />
+          </OpenClawContext.Provider>
+        </AnalyticsContext.Provider>
       </UserContext.Provider>
     </NotificationProvider>
   );
@@ -77,22 +59,15 @@ function renderCard(
   const sandboxCtx = makeSandboxContext(sandboxOverrides);
   const openClawCtx = makeOpenClawContext(openClawOverrides);
   const defaultMarkTried = markProductAsTried ?? vi.fn();
-  const openPhoneVerificationModal = vi.fn();
 
   const view = render(
-    renderCardTree(
-      sandboxCtx,
-      openClawCtx,
-      defaultMarkTried,
-      openPhoneVerificationModal,
-    ),
+    renderCardTree(sandboxCtx, openClawCtx, defaultMarkTried),
   );
 
   return {
     sandboxCtx,
     openClawCtx,
     markProductAsTried: defaultMarkTried,
-    openPhoneVerificationModal,
     rerenderCard: (
       nextOpenClaw: Partial<OpenClawContextType> = {},
       nextSandbox: Partial<UserContextType> = {},
@@ -102,7 +77,6 @@ function renderCard(
           makeSandboxContext({ ...sandboxOverrides, ...nextSandbox }),
           makeOpenClawContext({ ...openClawOverrides, ...nextOpenClaw }),
           defaultMarkTried,
-          openPhoneVerificationModal,
         ),
       );
     },
@@ -119,7 +93,6 @@ function getPrimaryButton(name: RegExp | string) {
 
 describe("OpenClawCatalogCard", () => {
   afterEach(() => {
-    mockUserActivation(undefined);
     vi.useRealTimers();
   });
 
@@ -278,212 +251,6 @@ describe("OpenClawCatalogCard", () => {
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
-  it("calls signupUser and shows a continuation modal when signup phase is NOT_STARTED", async () => {
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-    const unidleInstance = vi.fn();
-    const markProductAsTried = vi.fn();
-    const signupUser = vi.fn();
-
-    renderCard(
-      {
-        status: OpenClawStatus.USER_NOT_READY,
-        uiURL: "https://openclaw.example.com",
-        unidleInstance,
-      },
-      markProductAsTried,
-      {
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser,
-      },
-    );
-
-    await userEvent.click(getPrimaryButton("Try it"));
-
-    expect(signupUser).toHaveBeenCalled();
-    expect(windowOpenSpy).not.toHaveBeenCalled();
-    expect(unidleInstance).not.toHaveBeenCalled();
-    expect(markProductAsTried).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("dialog", { name: "User signup is in progress" }),
-    ).toBeInTheDocument();
-
-    windowOpenSpy.mockRestore();
-  });
-
-  it("opens OpenClaw settings from the continuation modal after signup becomes READY", async () => {
-    const signupUser = vi.fn();
-    const { rerenderCard } = renderCard(
-      { status: OpenClawStatus.USER_NOT_READY },
-      vi.fn(),
-      {
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser,
-      },
-    );
-
-    await userEvent.click(getPrimaryButton("Try it"));
-    expect(
-      screen.getByRole("dialog", { name: "User signup is in progress" }),
-    ).toBeInTheDocument();
-
-    rerenderCard(
-      { status: OpenClawStatus.NEW },
-      { userSignupPhase: UserSignupPhase.READY, signupUser },
-    );
-
-    await userEvent.click(
-      within(
-        screen.getByRole("dialog", { name: "User signup is in progress" }),
-      ).getByRole("button", { name: "Provision" }),
-    );
-
-    expect(
-      screen.getByRole("dialog", { name: "Provision OpenClaw instance" }),
-    ).toBeInTheDocument();
-  });
-
-  it("opens OpenClaw settings on the fast path when activation is still active at READY", () => {
-    mockUserActivation(true);
-    vi.useFakeTimers();
-    const signupUser = vi.fn();
-
-    const { rerenderCard } = renderCard(
-      { status: OpenClawStatus.USER_NOT_READY },
-      vi.fn(),
-      {
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser,
-      },
-    );
-
-    fireEvent.click(getPrimaryButton("Try it"));
-    expect(
-      screen.queryByRole("dialog", { name: "User signup is in progress" }),
-    ).not.toBeInTheDocument();
-
-    rerenderCard(
-      { status: OpenClawStatus.NEW },
-      { userSignupPhase: UserSignupPhase.READY, signupUser },
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(SIGNUP_WATCHER_INTERVAL_MS);
-    });
-
-    expect(
-      screen.getByRole("dialog", { name: "Provision OpenClaw instance" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("dialog", { name: "User signup is in progress" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("opens phone verification modal when signup phase is PENDING_PHONE_VERIFICATION", async () => {
-    const unidleInstance = vi.fn();
-    const openPhoneVerificationModal = vi.fn();
-
-    const sandboxCtx = makeSandboxContext({
-      userSignupPhase: UserSignupPhase.PENDING_PHONE_VERIFICATION,
-    });
-    const openClawCtx = makeOpenClawContext({
-      status: OpenClawStatus.READY,
-      uiURL: "https://openclaw.example.com",
-      unidleInstance,
-    });
-
-    render(
-      <NotificationProvider>
-        <UserContext.Provider value={sandboxCtx}>
-          <SignupActionProvider>
-            <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
-              <OpenClawContext.Provider value={openClawCtx}>
-                <PhoneVerificationContext.Provider
-                  value={{ openPhoneVerificationModal }}
-                >
-                  <OpenClawCatalogCard
-                    product={openclawProduct}
-                    isGreenCornerVisible={false}
-                    markProductAsTried={vi.fn()}
-                  />
-                </PhoneVerificationContext.Provider>
-              </OpenClawContext.Provider>
-            </AnalyticsContext.Provider>
-          </SignupActionProvider>
-        </UserContext.Provider>
-      </NotificationProvider>,
-    );
-
-    await userEvent.click(getPrimaryButton("Launch"));
-
-    expect(openPhoneVerificationModal).toHaveBeenCalledTimes(1);
-    expect(unidleInstance).not.toHaveBeenCalled();
-  });
-
-  it("closes the continuation modal when signup requires phone verification", async () => {
-    const signupUser = vi.fn();
-    const { openPhoneVerificationModal, rerenderCard } = renderCard(
-      { status: OpenClawStatus.USER_NOT_READY },
-      vi.fn(),
-      {
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser,
-      },
-    );
-
-    await userEvent.click(getPrimaryButton("Try it"));
-    expect(
-      screen.getByRole("dialog", { name: "User signup is in progress" }),
-    ).toBeInTheDocument();
-
-    rerenderCard(
-      { status: OpenClawStatus.USER_NOT_READY },
-      {
-        userSignupPhase: UserSignupPhase.PENDING_PHONE_VERIFICATION,
-        signupUser,
-      },
-    );
-
-    expect(
-      screen.queryByRole("dialog", { name: "User signup is in progress" }),
-    ).not.toBeInTheDocument();
-    expect(openPhoneVerificationModal).not.toHaveBeenCalled();
-  });
-
-  it("shows the continuation modal without launching when signup phase is PROVISIONING", async () => {
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-    const unidleInstance = vi.fn();
-    const markProductAsTried = vi.fn();
-
-    renderCard(
-      {
-        status: OpenClawStatus.READY,
-        uiURL: "https://openclaw.example.com",
-        unidleInstance,
-      },
-      markProductAsTried,
-      { userSignupPhase: UserSignupPhase.PROVISIONING },
-    );
-
-    await userEvent.click(getPrimaryButton("Launch"));
-
-    expect(windowOpenSpy).not.toHaveBeenCalled();
-    expect(unidleInstance).not.toHaveBeenCalled();
-    expect(markProductAsTried).not.toHaveBeenCalled();
-    expect(
-      screen.getByRole("dialog", { name: "User signup is in progress" }),
-    ).toBeInTheDocument();
-
-    windowOpenSpy.mockRestore();
-  });
-
   it("opens the delete confirmation modal when delete button is clicked", async () => {
     renderCard({ status: OpenClawStatus.READY });
 
@@ -539,11 +306,13 @@ describe("OpenClawCatalogCard", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("disables primary button when userSignupPhase is INITIAL_FETCH", () => {
+  it("enables primary button regardless of userSignupPhase", () => {
     renderCard({ status: OpenClawStatus.READY }, undefined, {
       userSignupPhase: UserSignupPhase.INITIAL_FETCH,
     });
 
-    expect(getPrimaryButton(/Loading/)).toBeDisabled();
+    // The button should not be disabled by userSignupPhase anymore; only
+    // by the instance status (LOADING or DELETING).
+    expect(getPrimaryButton("Launch")).toBeEnabled();
   });
 });

@@ -1,0 +1,55 @@
+.sandbox-cta-more-info {
+  align-items: start;
+  background-color: rgba(0, 0, 0, 0.21);
+  border-radius: var(--rh-border-radius-default);
+  bottom: var(--rh-space-4xl);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.21);
+  display: flex;
+  flex-direction: column;
+  gap: var(--rh-space-lg);
+  margin-top: var(--rh-space-xl);
+  max-width: 500px;
+  padding: 21px;
+}
+
+.sandbox-cta-more-info__heading {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.sandbox-cta-more-info__heading-icon {
+  color: var(--rh-color-brand-red);
+  height: 50px;
+}
+
+.sandbox-cta-more-info__heading-title {
+  font-weight: bold;
+}
+
+.sandbox-cta-more-info__informative-content {
+  text-align: left;
+}
+
+.sandbox-cta-more-info__informative-content-link,
+.sandbox-cta-more-info__informative-copy-technical-details-button {
+  background: none;
+  border: none;
+  color: var(--rh-color-text-primary-on-dark);
+  font-size: var(--rh-font-size-body-text-sm);
+  text-decoration: underline var(--rh-border-width-sm, 1px) dashed;
+  transition:
+    color 0.3s ease,
+    text-decoration-color 0.3s ease,
+    text-underline-offset 0.3s ease;
+}
+
+.sandbox-cta-more-info__informative-content-link:hover,
+.sandbox-cta-more-info__informative-copy-technical-details-button:hover,
+.sandbox-cta-more-info__informative-copy-technical-details-button:focus {
+  background: none;
+  color: var(--rh-color-interactive-primary);
+  text-decoration: underline var(--rh-border-width-sm, 1px) dashed;
+  text-decoration-color: inherit;
+  text-underline-offset: max(5px, 0.28em);
+}

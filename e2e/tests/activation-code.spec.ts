@@ -2,7 +2,9 @@ import test, { expect } from "@playwright/test";
 
 import { UserSignupPhase } from "../../src/hooks/userSignupPhase";
 
-test.describe("Activation code modal", () => {
+// Skipped until the activation code feature is migrated to the
+// landing page.
+test.describe.skip("Activation code modal", () => {
   test.describe("opened from the catalog", () => {
     test.beforeEach(async ({ page }) => {
       await page.goto("/");

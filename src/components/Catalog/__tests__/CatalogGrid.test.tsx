@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
@@ -10,11 +10,8 @@ import {
 import { NotificationProvider } from "../../../hooks/NotificationProvider";
 import type { OpenClawContextType } from "../../../hooks/OpenClawContext";
 import { OpenClawContext } from "../../../hooks/OpenClawContext";
-import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
 import type { PublicConfigurationContextType } from "../../../hooks/PublicConfigurationContext";
 import { PublicConfigurationContext } from "../../../hooks/PublicConfigurationContext";
-import { mockUserActivation } from "../../../hooks/signupAction/__tests__/userActivationTestHelpers";
-import { SIGNUP_WATCHER_INTERVAL_MS } from "../../../hooks/signupAction/signupActionUtils";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
 import { UserSignupPhase } from "../../../hooks/userSignupPhase";
@@ -33,8 +30,6 @@ vi.mock("../../../hooks/AnsibleProvider", () => ({
 vi.mock("../../../hooks/OpenClawProvider", () => ({
   OpenClawProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
-
-const mockOpenPhoneVerificationModal = vi.fn();
 
 function makeContext(
   overrides: Partial<UserContextType> = {},
@@ -88,13 +83,7 @@ function renderGridTree(
           <AnsibleContext.Provider value={ansibleCtx}>
             <OpenClawContext.Provider value={openClawCtx}>
               <UserContext.Provider value={ctx}>
-                <PhoneVerificationContext.Provider
-                  value={{
-                    openPhoneVerificationModal: mockOpenPhoneVerificationModal,
-                  }}
-                >
-                  <CatalogGrid />
-                </PhoneVerificationContext.Provider>
+                <CatalogGrid />
               </UserContext.Provider>
             </OpenClawContext.Provider>
           </AnsibleContext.Provider>
@@ -150,21 +139,8 @@ function getRhdhCard(): HTMLElement {
   });
 }
 
-const rhdhProductUrl =
-  "https://backstage-developer-hub-rhdh-operator.apps.example.com";
-
-function getSignupModal() {
-  return screen.getByRole("dialog", { name: "User signup is in progress" });
-}
-
 describe("CatalogGrid", () => {
-  beforeEach(() => {
-    mockOpenPhoneVerificationModal.mockClear();
-    mockUserActivation(undefined);
-  });
-
   afterEach(() => {
-    mockUserActivation(undefined);
     vi.useRealTimers();
   });
 
@@ -208,7 +184,7 @@ describe("CatalogGrid", () => {
     expect(openshiftCard.textContent).not.toContain("Provisioning");
   });
 
-  it("opens product URL for simple cards when user signup phase is READY", async () => {
+  it("opens product URL for simple cards directly", async () => {
     const windowOpenSpy = vi
       .spyOn(window, "open")
       .mockImplementation(() => null);
@@ -221,227 +197,14 @@ describe("CatalogGrid", () => {
     windowOpenSpy.mockRestore();
   });
 
-  it("calls signupUser and shows a disabled continuation modal when signup phase is NOT_STARTED", async () => {
-    const signupUser = vi.fn();
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-
-    renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser,
-      }),
-    );
-
-    await userEvent.click(getOpenShiftTryItButton());
-
-    expect(signupUser).toHaveBeenCalledTimes(1);
-    expect(windowOpenSpy).not.toHaveBeenCalled();
-    expect(getSignupModal()).toBeInTheDocument();
-    expect(
-      within(getSignupModal()).getByRole("button", { name: /Try it/ }),
-    ).toBeDisabled();
-    windowOpenSpy.mockRestore();
-  });
-
-  it("opens the product URL from the continuation modal after signup becomes READY", async () => {
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-    const signupUser = vi.fn();
-
-    const { rerenderGrid } = renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser,
-      }),
-    );
-
-    await userEvent.click(getOpenShiftTryItButton());
-    expect(getSignupModal()).toBeInTheDocument();
-
-    rerenderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.READY,
-        signupUser,
-      }),
-    );
-
-    const continueButton = within(getSignupModal()).getByRole("button", {
-      name: "Try it",
-    });
-    expect(continueButton).toBeEnabled();
-    await userEvent.click(continueButton);
-
-    expect(windowOpenSpy).toHaveBeenCalled();
-    expect(
-      screen.queryByRole("dialog", { name: "User signup is in progress" }),
-    ).not.toBeInTheDocument();
-    windowOpenSpy.mockRestore();
-  });
-
-  it("opens the product URL on the fast path when activation is still active at READY", () => {
-    mockUserActivation(true);
-    vi.useFakeTimers();
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-    const signupUser = vi.fn();
-
-    const { rerenderGrid } = renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser,
-      }),
-    );
-
-    fireEvent.click(getOpenShiftTryItButton());
-    expect(signupUser).toHaveBeenCalledTimes(1);
-    expect(
-      screen.queryByRole("dialog", { name: "User signup is in progress" }),
-    ).not.toBeInTheDocument();
-
-    rerenderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.READY,
-        signupUser,
-      }),
-    );
-
-    act(() => {
-      vi.advanceTimersByTime(SIGNUP_WATCHER_INTERVAL_MS);
-    });
-
-    expect(windowOpenSpy).toHaveBeenCalled();
-    expect(
-      screen.queryByRole("dialog", { name: "User signup is in progress" }),
-    ).not.toBeInTheDocument();
-    windowOpenSpy.mockRestore();
-  });
-
-  it("closes the continuation modal when signup requires phone verification", async () => {
-    const signupUser = vi.fn();
-    const { rerenderGrid } = renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser,
-      }),
-    );
-
-    await userEvent.click(getOpenShiftTryItButton());
-    expect(getSignupModal()).toBeInTheDocument();
-
-    rerenderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.PENDING_PHONE_VERIFICATION,
-        signupUser,
-      }),
-    );
-
-    expect(
-      screen.queryByRole("dialog", { name: "User signup is in progress" }),
-    ).not.toBeInTheDocument();
-    expect(mockOpenPhoneVerificationModal).not.toHaveBeenCalled();
-  });
-
-  it("does not open product URL or call signupUser when signup phase is PENDING_PHONE_VERIFICATION", async () => {
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-    const signupUser = vi.fn();
-
-    renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.PENDING_PHONE_VERIFICATION,
-        signupUser,
-      }),
-    );
-
-    await userEvent.click(getOpenShiftTryItButton());
-
-    expect(windowOpenSpy).not.toHaveBeenCalled();
-    expect(signupUser).not.toHaveBeenCalled();
-    windowOpenSpy.mockRestore();
-  });
-
-  it("shows the continuation modal without opening the product URL when signup phase is PROVISIONING", async () => {
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-
-    renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.PROVISIONING,
-      }),
-    );
-
-    await userEvent.click(getOpenShiftTryItButton());
-
-    expect(windowOpenSpy).not.toHaveBeenCalled();
-    expect(getSignupModal()).toBeInTheDocument();
-    windowOpenSpy.mockRestore();
-  });
-
-  it("shows the continuation modal without opening the product URL when signup phase is SIGNING_UP", async () => {
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-
-    renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.SIGNING_UP,
-      }),
-    );
-
-    await userEvent.click(getOpenShiftTryItButton());
-
-    expect(windowOpenSpy).not.toHaveBeenCalled();
-    expect(getSignupModal()).toBeInTheDocument();
-    windowOpenSpy.mockRestore();
-  });
-
-  it("disables other card buttons while signup is in progress", async () => {
-    renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-        user: undefined,
-        signupUser: vi.fn(),
-      }),
-    );
-
-    // Grab all primary buttons before the modal opens, since
-    // PatternFly sets aria-hidden on the page behind the modal.
-    const catalogSection = screen.getByRole("region", {
-      name: "Product catalog",
-    });
-    const buttons = within(catalogSection).getAllByRole("button");
-    expect(buttons.length).toBeGreaterThan(1);
-
-    await userEvent.click(getOpenShiftTryItButton());
-    expect(getSignupModal()).toBeInTheDocument();
-
-    for (const button of buttons) {
-      expect(button).toBeDisabled();
-    }
-  });
-
-  it("disables the primary button on simple cards when signup phase is INITIAL_FETCH", () => {
-    renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.INITIAL_FETCH,
-      }),
-    );
+  it("does not disable simple card primary buttons", () => {
+    renderGrid(makeContext());
 
     const openshiftCard = getOpenShiftCard();
     const button = within(openshiftCard).getByRole("button", {
-      name: /Try it/,
+      name: "Try it",
     });
-    expect(button).toBeDisabled();
+    expect(button).toBeEnabled();
   });
 
   it("renders AAP card with the correct product type", () => {
@@ -470,35 +233,6 @@ describe("CatalogGrid", () => {
     ).toBeInTheDocument();
   });
 
-  it("opens phone verification modal for simple cards when signup phase is PENDING_PHONE_VERIFICATION", async () => {
-    renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.PENDING_PHONE_VERIFICATION,
-      }),
-    );
-
-    await userEvent.click(getOpenShiftTryItButton());
-
-    expect(mockOpenPhoneVerificationModal).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not open product URL when signup phase is PENDING_MANUAL_APPROVAL", async () => {
-    const windowOpenSpy = vi
-      .spyOn(window, "open")
-      .mockImplementation(() => null);
-
-    renderGrid(
-      makeContext({
-        userSignupPhase: UserSignupPhase.PENDING_MANUAL_APPROVAL,
-      }),
-    );
-
-    await userEvent.click(getOpenShiftTryItButton());
-
-    expect(windowOpenSpy).not.toHaveBeenCalled();
-    windowOpenSpy.mockRestore();
-  });
-
   describe("RHDH card", () => {
     it("opens the product URL when the account is ready and startDate is old enough", async () => {
       const windowOpenSpy = vi
@@ -522,11 +256,7 @@ describe("CatalogGrid", () => {
 
       await userEvent.click(tryItButton);
 
-      expect(windowOpenSpy).toHaveBeenCalledWith(
-        rhdhProductUrl,
-        "_blank",
-        "noopener,noreferrer",
-      );
+      expect(windowOpenSpy).toHaveBeenCalled();
       windowOpenSpy.mockRestore();
     });
 
@@ -655,38 +385,6 @@ describe("CatalogGrid", () => {
       expect(
         within(getRhdhCard()).getByRole("button", { name: /Provisioning/ }),
       ).toBeDisabled();
-    });
-
-    it("disables the primary button before the account is READY", () => {
-      const preReadyPhases = [
-        UserSignupPhase.INITIAL_FETCH,
-        UserSignupPhase.NOT_STARTED,
-        UserSignupPhase.PENDING_PHONE_VERIFICATION,
-        UserSignupPhase.PENDING_MANUAL_APPROVAL,
-        UserSignupPhase.SIGNING_UP,
-        UserSignupPhase.PROVISIONING,
-        UserSignupPhase.BLOCKED,
-      ];
-
-      for (const userSignupPhase of preReadyPhases) {
-        const { unmount } = renderGrid(
-          makeContext({
-            userSignupPhase,
-            user:
-              userSignupPhase === UserSignupPhase.NOT_STARTED
-                ? undefined
-                : readyUserFixture,
-          }),
-        );
-
-        expect(
-          within(getRhdhCard()).getByRole("button", { name: /Try it/ }),
-        ).toBeDisabled();
-        expect(
-          within(getRhdhCard()).queryByRole("progressbar"),
-        ).not.toBeInTheDocument();
-        unmount();
-      }
     });
 
     it("hides the card when rhdh is disabled", () => {

@@ -1,37 +1,29 @@
-import { useEffect } from "react";
 import { Outlet } from "react-router";
 
 import { useAuth } from "../auth/AuthenticatedContext";
 import { useUserContext } from "../hooks/UserContext";
 import { UserSignupPhase } from "../hooks/userSignupPhase";
+import { LandingPage } from "./LandingPage/LandingPage";
 import { LoadingPage } from "./LoadingPage/LoadingPage";
 
 export function ReadyGuard() {
-  const auth = useAuth();
+  const { authenticated: isUserAuthenticated } = useAuth();
   const { userSignupPhase } = useUserContext();
 
-  /**
-   * Temporary effect in order to force a login for every user while
-   * we finish working on the signup integration. Otherwise the layout
-   * crashes because it uses "useAuthenticatedUser", but in this guard
-   * we are letting it render any time because we don't have the signup
-   * wired in the landing page yet. This temporary fix replicates the
-   * old behavior, and will go away as soon as we have the signup
-   * integration.
-   */
-  useEffect(() => {
-    if (!auth.authenticated && !auth.authenticationError) {
-      auth.login();
-    }
-  }, [auth]);
-
-  if (!auth.authenticated) {
-    return null;
-  }
-
+  // Show a loading page for when the user's status has not been determined
+  // yet.
   if (userSignupPhase === UserSignupPhase.INITIAL_FETCH) {
     return <LoadingPage />;
   }
 
-  return <Outlet />;
+  // When we have an authenticated user in a "READY" state, we want to
+  // render the Sandbox page for them.
+  if (isUserAuthenticated && userSignupPhase === UserSignupPhase.READY) {
+    return <Outlet />;
+  }
+
+  // Render the landing page in any other case. Unauthenticated users will get
+  // the landing page with the CTA triggering the login flow, if they click
+  // it.
+  return <LandingPage />;
 }

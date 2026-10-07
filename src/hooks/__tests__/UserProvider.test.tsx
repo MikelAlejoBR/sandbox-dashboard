@@ -10,7 +10,6 @@ import {
 import { SUPPORT_EMAIL } from "../../const";
 import { server } from "../../mocks/server";
 import type { BootstrapData } from "../../types/main";
-import { NotificationProvider } from "../NotificationProvider";
 import { useUserContext } from "../UserContext";
 import { UserProvider } from "../UserProvider";
 import { UserSignupPhase } from "../userSignupPhase";
@@ -38,6 +37,8 @@ function ContextConsumer() {
       <span data-testid="givenName">{ctx.user?.givenName ?? ""}</span>
       <span data-testid="username">{ctx.user?.username ?? ""}</span>
       <span data-testid="ready">{String(ctx.user?.status?.ready ?? "")}</span>
+      <span data-testid="error-title">{ctx.userError?.title ?? ""}</span>
+      <span data-testid="error-detail">{ctx.userError?.detail ?? ""}</span>
       <button data-testid="signup-btn" onClick={() => ctx.signupUser()}>
         Sign Up
       </button>
@@ -54,11 +55,9 @@ function renderProvider(
 
   return render(
     <AuthenticatedContext.Provider value={authValue}>
-      <NotificationProvider>
-        <UserProvider bootstrapData={bootstrapData}>
-          <ContextConsumer />
-        </UserProvider>
-      </NotificationProvider>
+      <UserProvider bootstrapData={bootstrapData}>
+        <ContextConsumer />
+      </UserProvider>
     </AuthenticatedContext.Provider>,
   );
 }
@@ -120,7 +119,7 @@ describe("UserProvider", () => {
     expect(screen.getByTestId("givenName").textContent).toBe("");
   });
 
-  it("sets phase to BLOCKED and shows a danger alert when the initial fetch fails", async () => {
+  it("sets phase to BLOCKED and sets userError when the initial fetch fails", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
     server.use(
@@ -141,9 +140,9 @@ describe("UserProvider", () => {
       );
     });
 
-    expect(
-      screen.getByText("Unable to sign you up into Developer Sandbox"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("error-title").textContent).toBe(
+      "Unable to sign you up into Developer Sandbox",
+    );
   });
 
   it("does not retry the initial user fetch after unmount", async () => {
@@ -169,12 +168,9 @@ describe("UserProvider", () => {
     });
 
     expect(calls).toBe(1);
-    expect(
-      screen.queryByText("Unable to sign you up into Developer Sandbox"),
-    ).not.toBeInTheDocument();
   });
 
-  it("shows a suspended alert when the backend reports the user has been suspended", async () => {
+  it("sets userError when the backend reports the user has been suspended", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
     server.use(
@@ -198,15 +194,12 @@ describe("UserProvider", () => {
       );
     });
 
-    expect(screen.getByText("The account is suspended")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Access to the Developer Sandbox has been suspended due to suspicious activity or detected abuse",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("error-title").textContent).toBe(
+      "The account is suspended",
+    );
   });
 
-  it("shows a denied alert when the backend reports access has been denied", async () => {
+  it("sets userError when the backend reports access has been denied", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
     server.use(
@@ -230,10 +223,9 @@ describe("UserProvider", () => {
       );
     });
 
-    expect(screen.getByText("The access has been denied")).toBeInTheDocument();
-    expect(
-      screen.getByText("Access to the Developer Sandbox has been denied"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("error-title").textContent).toBe(
+      "The access has been denied",
+    );
   });
 
   it("does not allow signupUser when phase is BLOCKED", async () => {
@@ -356,7 +348,7 @@ describe("UserProvider", () => {
     });
   });
 
-  it("transitions to SIGNING_UP phase and shows info alert when signupUser is called", async () => {
+  it("transitions to SIGNING_UP phase when signupUser is called", async () => {
     server.use(
       http.get("*/api/v1/signup", () => {
         return new HttpResponse(null, { status: 404 });
@@ -381,13 +373,9 @@ describe("UserProvider", () => {
         String(UserSignupPhase.SIGNING_UP),
       );
     });
-
-    expect(
-      screen.getByText("Setting up your access to Developer Sandbox"),
-    ).toBeInTheDocument();
   });
 
-  it("shows danger alert and resets phase when signup API returns an error", async () => {
+  it("sets userError and resets phase when signup API returns an error", async () => {
     server.use(
       http.get("*/api/v1/signup", () => {
         return new HttpResponse(null, { status: 404 });
@@ -411,7 +399,9 @@ describe("UserProvider", () => {
     await userEvent.click(screen.getByTestId("signup-btn"));
 
     await waitFor(() => {
-      expect(screen.getByText("Unable to sign you up")).toBeInTheDocument();
+      expect(screen.getByTestId("error-title").textContent).toBe(
+        "Unable to sign you up",
+      );
     });
 
     expect(screen.getByTestId("phase").textContent).toBe(
@@ -453,7 +443,7 @@ describe("UserProvider", () => {
     expect(signupCallCount).toBe(1);
   });
 
-  it("polls and transitions to READY with notification after signup completes", async () => {
+  it("polls and transitions to READY after signup completes", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
     let getCallCount = 0;
@@ -525,8 +515,6 @@ describe("UserProvider", () => {
         String(UserSignupPhase.READY),
       );
     });
-
-    expect(screen.getByText("Everything is set!")).toBeInTheDocument();
   });
 
   it("transitions to PROVISIONING_TIMED_OUT (not NOT_STARTED) when provisioning exceeds 60 seconds", async () => {
@@ -594,9 +582,9 @@ describe("UserProvider", () => {
       );
     });
 
-    expect(
-      screen.getByText("Unable to set up your Developer Sandbox account"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("error-title").textContent).toBe(
+      "Unable to set up your Developer Sandbox account",
+    );
   });
 
   it("does not allow signupUser when phase is PROVISIONING_TIMED_OUT", async () => {
@@ -739,12 +727,10 @@ describe("UserProvider", () => {
       );
     });
 
-    expect(
-      screen.queryByText("Unable to determine your account's status"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("error-title").textContent).toBe("");
   });
 
-  it("stops polling and shows error alert on non-transient errors", async () => {
+  it("stops polling and sets userError on non-transient errors", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
 
     let getCallCount = 0;
@@ -797,16 +783,14 @@ describe("UserProvider", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Unable to determine your account's status"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("error-title").textContent).toBe(
+        "Unable to determine your account's status",
+      );
     });
 
-    expect(
-      screen.getByText(
-        `Unfortunately, we weren't able to determine your account's status. Please try again later, and if the issue persists, contact ${SUPPORT_EMAIL}.`,
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("error-detail").textContent).toContain(
+      SUPPORT_EMAIL,
+    );
   });
 
   it("stops polling after exhausting transient retry budget", async () => {
@@ -865,10 +849,56 @@ describe("UserProvider", () => {
     });
 
     await waitFor(() => {
-      expect(
-        screen.getByText("Unable to determine your account's status"),
-      ).toBeInTheDocument();
+      expect(screen.getByTestId("error-title").textContent).toBe(
+        "Unable to determine your account's status",
+      );
     });
+  });
+
+  it("clears userError on a successful fetch after a previous error", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    let getCallCount = 0;
+    server.use(
+      http.get("*/api/v1/signup", () => {
+        getCallCount++;
+        if (getCallCount <= 2) {
+          return new HttpResponse(null, { status: 500 });
+        }
+        return HttpResponse.json({
+          name: "John Doe",
+          compliantUsername: "johndoe",
+          username: "johndoe",
+          givenName: "John",
+          familyName: "Doe",
+          company: "Red Hat",
+          status: {
+            ready: true,
+            reason: "",
+            verificationRequired: false,
+          },
+          defaultUserNamespace: "johndoe-dev",
+          consoleURL: "https://console.apps.example.com",
+          proxyURL: "https://proxy.example.com",
+        });
+      }),
+    );
+
+    renderProvider();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10000);
+    });
+
+    // After the error phase, if a subsequent fetch succeeds the error
+    // should be cleared.
+    await waitFor(() => {
+      expect(screen.getByTestId("phase").textContent).toBe(
+        String(UserSignupPhase.READY),
+      );
+    });
+
+    expect(screen.getByTestId("error-title").textContent).toBe("");
   });
 });
 

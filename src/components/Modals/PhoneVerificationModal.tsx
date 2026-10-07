@@ -1,3 +1,5 @@
+import "./PhoneVerificationModal.css";
+
 import {
   Alert,
   Button,
@@ -21,6 +23,7 @@ import { SUPPORT_EMAIL } from "../../const";
 import { ApiError } from "../../error/ApiError";
 import { mapApiErrorMessage } from "../../error/mapApiErrorMessage";
 import { useAnalyticsContext } from "../../hooks/AnalyticsContext";
+import { useUserContext } from "../../hooks/UserContext";
 import logger from "../../utils/logger";
 import {
   isValidCountryCode,
@@ -85,8 +88,8 @@ const CODE_SUBMIT_ERROR_RULES = [
 
 type PhoneVerificationModalProps = {
   isOpen: boolean;
+  /** Called when the user dismisses the modal. */
   onClose: () => void;
-  onVerified: () => void;
 };
 
 type Step = "phone" | "code";
@@ -94,9 +97,10 @@ type Step = "phone" | "code";
 export function PhoneVerificationModal({
   isOpen,
   onClose,
-  onVerified,
 }: PhoneVerificationModalProps) {
   const { trackAnalytics } = useAnalyticsContext();
+  const { refetchUserData } = useUserContext();
+
   const [step, setStep] = useState<Step>("phone");
   const [countryCode, setCountryCode] = useState("+1");
   const [phoneNumber, setPhoneNumber] = useState("");
@@ -182,7 +186,22 @@ export function PhoneVerificationModal({
     try {
       await completePhoneVerification(verificationCode);
       resetState();
-      onVerified();
+
+      // Once the phone has been verified, close the modal and trigger a
+      // refetch of the user data. On error inform the user about what
+      // happened.
+      refetchUserData()
+        .then(handleClose)
+        .catch((refetchErr) => {
+          logger.warn(
+            "Refetching the user's signup after verifying the user's phone threw an error",
+            refetchErr,
+          );
+
+          setError(
+            "The phone was successfully verified, but we were unable to refresh your user's details at the moment. You might have to refresh the page in order to start using the product trials. Sorry for the inconvenience.",
+          );
+        });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(
@@ -207,6 +226,7 @@ export function PhoneVerificationModal({
       onClose={handleClose}
       aria-label="Phone verification"
       variant="small"
+      className="pf-v6-theme-dark"
     >
       <ModalHeader
         title={
@@ -218,11 +238,11 @@ export function PhoneVerificationModal({
       <ModalBody>
         {error && (
           <Alert
+            className="phone-verification-modal__alert"
             variant="danger"
             isInline
             isPlain
             title={error}
-            style={{ marginBottom: "16px" }}
           />
         )}
         {step === "phone" ? (

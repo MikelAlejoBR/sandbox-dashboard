@@ -1,0 +1,61 @@
+.sandbox-cta__wrapper {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--rh-space-lg);
+}
+
+.sandbox-cta-button {
+  align-items: center;
+  appearance: none;
+  background-color: var(--rh-color-brand-red-on-light, #ee0000);
+  border: var(--rh-border-width-sm, 1px) solid
+    var(--rh-color-brand-red-on-light, #ee0000);
+  border-radius: var(--rh-border-radius-default, 3px);
+  color: var(--rh-color-text-primary-on-dark, #fff);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(
+    --rh-font-family-heading,
+    RedHatDisplay,
+    "Red Hat Display",
+    Helvetica,
+    Arial,
+    sans-serif
+  );
+  font-size: var(--rh-font-size-body-text-md, 1rem);
+  font-weight: var(--rh-font-weight-heading-bold, 700);
+  justify-content: center;
+  line-height: var(--rh-line-height-body-text, 1.5);
+  margin: 0;
+  outline: none;
+  padding: var(--rh-space-lg, 16px) var(--rh-space-2xl, 32px);
+  white-space: nowrap;
+  width: fit-content;
+}
+
+.sandbox-cta-button:hover {
+  background-color: var(--rh-color-brand-red-dark, #a60000);
+  border-color: var(--rh-color-brand-red-dark, #a60000);
+  color: var(--rh-color-text-primary-on-dark, #fff);
+}
+
+.sandbox-cta-button:focus-visible {
+  background-color: var(--rh-color-brand-red-dark, #a60000);
+  border-color: var(--rh-color-brand-red-dark, #a60000);
+  color: var(--rh-color-text-primary-on-dark, #fff);
+  outline: var(--rh-border-width-md, 2px) solid
+    var(--rh-color-brand-red-on-light, #ee0000);
+  outline-offset: 2px;
+  box-shadow: inset 0 0 0 1px var(--rh-color-text-primary-on-dark, #fff);
+}
+
+.sandbox-cta-button:active {
+  background-color: var(--rh-color-brand-red-dark, #a60000);
+  box-shadow: inset 0 0 0 1px var(--rh-color-text-primary-on-dark, #fff);
+}
+
+.sandbox-cta-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}

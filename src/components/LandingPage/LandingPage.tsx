@@ -1,26 +1,23 @@
 import "./LandingPage.css";
 
 import { BackToTop } from "@rhds/elements/react/rh-back-to-top/rh-back-to-top.js";
-import { Cta } from "@rhds/elements/react/rh-cta/rh-cta.js";
 import { Icon } from "@rhds/elements/react/rh-icon/rh-icon.js";
-import { Fragment, useMemo } from "react";
+import { Fragment, useEffect, useMemo } from "react";
 
 import RepoDetective from "../../assets/images/landing/Repo_Detective.webp";
 import RepoRocket from "../../assets/images/landing/Repo_Rocket.webp";
 import RedHatLogo from "../../assets/logos/rh_developer_sandbox_logo.svg?react";
-import { useAnalyticsContext } from "../../hooks/AnalyticsContext";
 import { usePublicConfigurationContext } from "../../hooks/PublicConfigurationContext";
 import type { Product } from "../../types/product";
 import { products } from "../Catalog/productData";
 import { PageFooter } from "../Layout/PageFooter";
+import { SandboxCta } from "./SandboxCta";
 
 /**
  * Full-viewport hero with minimal information, a CTA to try the Sandbox and
  * some links to get some information.
  */
 function HeroSection() {
-  const { trackAnalytics } = useAnalyticsContext();
-
   /** Sections shown as anchor links at the bottom of the hero. */
   const sections = [
     { id: "how-it-works", label: "How it works" },
@@ -44,15 +41,7 @@ function HeroSection() {
           tools and more. No setup required.
         </p>
         <div className="landing-hero__cta-row">
-          <Cta
-            variant="primary"
-            href="/"
-            onClick={() => {
-              trackAnalytics("Start your free trial", "Landing", "/", "cta");
-            }}
-          >
-            Start your free trial
-          </Cta>
+          <SandboxCta />
         </div>
       </div>
       <a
@@ -235,8 +224,6 @@ function FAQSection() {
 
 /** Dark closing CTA to bookend the page with the hero. */
 function FinalCTASection() {
-  const { trackAnalytics } = useAnalyticsContext();
-
   return (
     <section className="landing-cta" aria-label="Call to action">
       <div className="landing-cta__content">
@@ -244,15 +231,7 @@ function FinalCTASection() {
         <p className="landing-cta__subtitle">
           Your sandbox is a click away. Start exploring today.
         </p>
-        <Cta
-          variant="primary"
-          href="/"
-          onClick={() => {
-            trackAnalytics("Start your free trial", "Landing", "/", "cta");
-          }}
-        >
-          Start your free trial
-        </Cta>
+        <SandboxCta />
       </div>
     </section>
   );
@@ -260,6 +239,16 @@ function FinalCTASection() {
 
 /** Landing page shown at /welcome before the user enters the app. */
 export function LandingPage() {
+  // The effect adds the PatternFly dark theme class to the root element,
+  // because we want to make any PatternFly component we use match the RHDS'
+  // dark theme of the landing page.
+  useEffect(() => {
+    document.documentElement.classList.add("pf-v6-theme-dark");
+    return () => {
+      document.documentElement.classList.remove("pf-v6-theme-dark");
+    };
+  }, []);
+
   return (
     <div className="landing-page">
       <HeroSection />
