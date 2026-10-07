@@ -9,7 +9,6 @@ import {
 import { NotificationProvider } from "../../../hooks/NotificationProvider";
 import type { OpenClawContextType } from "../../../hooks/OpenClawContext";
 import { OpenClawContext } from "../../../hooks/OpenClawContext";
-import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
 import { PublicConfigurationContext } from "../../../hooks/PublicConfigurationContext";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
@@ -66,11 +65,7 @@ function renderGrid(openClawOverrides: Partial<OpenClawContextType> = {}) {
           <AnsibleContext.Provider value={ansibleCtx}>
             <OpenClawContext.Provider value={openClawCtx}>
               <UserContext.Provider value={sandboxCtx}>
-                <PhoneVerificationContext.Provider
-                  value={{ openPhoneVerificationModal: vi.fn() }}
-                >
-                  <CatalogGrid />
-                </PhoneVerificationContext.Provider>
+                <CatalogGrid />
               </UserContext.Provider>
             </OpenClawContext.Provider>
           </AnsibleContext.Provider>

@@ -7,7 +7,6 @@ import { Layout } from "./components/Layout/Layout";
 import { ReadyGuard } from "./components/ReadyGuard";
 import { AnalyticsProvider } from "./hooks/AnalyticsProvider";
 import { NotificationProvider } from "./hooks/NotificationProvider";
-import { PhoneVerificationProvider } from "./hooks/PhoneVerificationProvider";
 import { PublicConfigurationProvider } from "./hooks/PublicConfigurationProvider";
 import { UserProvider } from "./hooks/UserProvider";
 import type { BootstrapData } from "./types/main";
@@ -19,18 +18,16 @@ export function App({ bootstrapData }: { bootstrapData: BootstrapData }) {
         <PublicConfigurationProvider bootstrapData={bootstrapData}>
           <UserProvider bootstrapData={bootstrapData}>
             <AnalyticsProvider>
-              <PhoneVerificationProvider>
-                <BrowserRouter>
-                  <Routes>
-                    <Route element={<ReadyGuard />}>
-                      <Route element={<Layout />}>
-                        <Route index element={<CatalogPage />} />
-                        <Route path="activities" element={<ActivitiesPage />} />
-                      </Route>
+              <BrowserRouter>
+                <Routes>
+                  <Route element={<ReadyGuard />}>
+                    <Route element={<Layout />}>
+                      <Route index element={<CatalogPage />} />
+                      <Route path="activities" element={<ActivitiesPage />} />
                     </Route>
-                  </Routes>
-                </BrowserRouter>
-              </PhoneVerificationProvider>
+                  </Route>
+                </Routes>
+              </BrowserRouter>
             </AnalyticsProvider>
           </UserProvider>
         </PublicConfigurationProvider>

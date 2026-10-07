@@ -12,7 +12,7 @@ test.describe("User menu", () => {
   });
 
   test(
-    "hides Reset Workspaces when the user is not ready",
+    "is not visible when the user is not ready",
     { tag: "@mock-only" },
     async ({ page }) => {
       await page.addInitScript((phase) => {
@@ -22,13 +22,13 @@ test.describe("User menu", () => {
       }, UserSignupPhase.NOT_STARTED);
       await page.goto("/");
 
-      await page.getByRole("button", { name: "User menu" }).click();
-
+      // Non-ready users see the landing page, which does not include
+      // the user menu at all.
       await expect(
-        page.getByRole("menuitem", { name: "Log out" }),
+        page.getByRole("heading", { level: 1, name: /Trying/ }),
       ).toBeVisible();
       await expect(
-        page.getByRole("menuitem", { name: "Reset Workspaces" }),
+        page.getByRole("button", { name: "User menu" }),
       ).not.toBeVisible();
     },
   );

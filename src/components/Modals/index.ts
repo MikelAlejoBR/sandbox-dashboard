@@ -7,5 +7,4 @@ export { DeleteInstanceModal } from "./DeleteInstanceModal";
 export { OpenClawLaunchInfoModal } from "./OpenClawLaunchInfoModal";
 export { PhoneVerificationModal } from "./PhoneVerificationModal";
 export { ProviderCredentialForm } from "./ProviderCredentialForm";
-export { SignupInProgressModal } from "./SignupInProgressModal";
 export { WorkspaceResetModal } from "./WorkspaceResetModal";

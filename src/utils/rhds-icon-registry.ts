@@ -3,6 +3,7 @@ import iconFacebook from "@rhds/icons/social/facebook.js";
 import iconLinkedin from "@rhds/icons/social/linkedin.js";
 import iconX from "@rhds/icons/social/x.js";
 import iconYoutube from "@rhds/icons/social/youtube.js";
+import iconInfo from "@rhds/icons/standard/info.js";
 import iconArrowRight from "@rhds/icons/ui/arrow-right.js";
 import iconCaretUp from "@rhds/icons/ui/caret-up.js";
 import iconCheckCircle from "@rhds/icons/ui/check-circle.js";
@@ -19,6 +20,7 @@ const iconRegistry = new Map<string, Node>([
   ["social/linkedin", iconLinkedin],
   ["social/x", iconX],
   ["social/youtube", iconYoutube],
+  ["standard/info", iconInfo],
   ["ui/arrow-right", iconArrowRight],
   ["ui/caret-up", iconCaretUp],
   ["ui/check-circle", iconCheckCircle],

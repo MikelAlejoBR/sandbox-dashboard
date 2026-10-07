@@ -1,15 +1,11 @@
 import { AlertVariant } from "@patternfly/react-core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { SUPPORT_EMAIL } from "../../const";
 import { UserFacingError } from "../../error/UserFacingError";
 import { useAnalyticsContext } from "../../hooks/AnalyticsContext";
 import { useAnsibleContext } from "../../hooks/AnsibleContext";
 import { useNotifications } from "../../hooks/NotificationContext";
-import { usePhoneVerificationContext } from "../../hooks/PhoneVerificationContext";
-import { useSignupAction } from "../../hooks/signupAction/SignupActionContext";
-import { useUserContext } from "../../hooks/UserContext";
-import { UserSignupPhase } from "../../hooks/userSignupPhase";
 import type { Product } from "../../types/product";
 import type { AAPInstanceStatus } from "../../utils/aap-utils";
 import logger from "../../utils/logger";
@@ -51,15 +47,6 @@ function getButtonLabel(status: AAPInstanceStatus): ButtonLabel {
     default:
       return ButtonLabel.TRY_IT;
   }
-}
-
-/**
- * Whether the Ansible READY handler can run. The connected provider is a
- * NO-OP (`userNotReady`) until signup finishes, and `initialFetch` means
- * the instance status has not been loaded yet.
- */
-function canRunAnsibleReadyAction(status: AAPInstanceStatus): boolean {
-  return status.kind !== "userNotReady" && status.kind !== "initialFetch";
 }
 
 /**
@@ -111,11 +98,7 @@ export function AnsibleCatalogCard({
   const { deleteInstance, instanceStatus, provisionInstance, unidleInstance } =
     useAnsibleContext();
 
-  const { userSignupPhase } = useUserContext();
-  const { isSignupInProgress, signupAndRun, registerAction } =
-    useSignupAction();
   const { addAlert, addAlertFromError } = useNotifications();
-  const { openPhoneVerificationModal } = usePhoneVerificationContext();
   const { trackAnalytics } = useAnalyticsContext();
 
   const [deletionError, setDeletionError] = useState<
@@ -139,17 +122,12 @@ export function AnsibleCatalogCard({
 
   // Determine the status of the interactive buttons.
   const isPrimaryButtonDisabled =
-    isSignupInProgress ||
-    buttonLabel === ButtonLabel.LOADING ||
-    buttonLabel === ButtonLabel.DELETING ||
-    userSignupPhase === UserSignupPhase.INITIAL_FETCH;
+    buttonLabel === ButtonLabel.LOADING || buttonLabel === ButtonLabel.DELETING;
   const isPrimaryButtonSpinnerVisible =
     buttonLabel === ButtonLabel.LOADING ||
     buttonLabel === ButtonLabel.PROVISIONING ||
-    buttonLabel === ButtonLabel.DELETING ||
-    userSignupPhase === UserSignupPhase.INITIAL_FETCH;
+    buttonLabel === ButtonLabel.DELETING;
   const isDeleteButtonVisible =
-    userSignupPhase !== UserSignupPhase.INITIAL_FETCH &&
     instanceStatus.kind !== "initialFetch" &&
     instanceStatus.kind !== "userNotReady" &&
     instanceStatus.kind !== "new" &&
@@ -161,7 +139,7 @@ export function AnsibleCatalogCard({
    * Once the user signup is ready, it either un-idles or provisions the
    * Ansible instance.
    */
-  const handleReadyPrimaryAction = useCallback(async () => {
+  const handleOnClickPrimaryButton = useCallback(async () => {
     switch (instanceStatus.kind) {
       case "userNotReady":
       case "unknown":
@@ -249,57 +227,6 @@ export function AnsibleCatalogCard({
     provisionInstance,
     trackAnalytics,
     unidleInstance,
-  ]);
-
-  // Register the action to perform in case the user signup takes longer
-  // than anticipated. Basically it will trigger the AAP instance
-  // provisioning and open the Ansible information modal.
-  useEffect(() => {
-    registerAction(product.type, {
-      buttonLabel,
-      canEnable:
-        userSignupPhase === UserSignupPhase.READY &&
-        canRunAnsibleReadyAction(instanceStatus),
-      onReady: () => {
-        void handleReadyPrimaryAction();
-      },
-    });
-  }, [
-    buttonLabel,
-    handleReadyPrimaryAction,
-    instanceStatus,
-    product.type,
-    registerAction,
-    userSignupPhase,
-  ]);
-
-  /**
-   * Routes the catalog primary button through signup continuation or the
-   * ready-state Ansible actions.
-   */
-  const handleOnClickPrimaryButton = useCallback(() => {
-    switch (userSignupPhase) {
-      case UserSignupPhase.NOT_STARTED:
-      case UserSignupPhase.SIGNING_UP:
-      case UserSignupPhase.PROVISIONING:
-        signupAndRun(product.type);
-        return;
-      case UserSignupPhase.PENDING_PHONE_VERIFICATION:
-        openPhoneVerificationModal();
-        return;
-      case UserSignupPhase.READY:
-        void handleReadyPrimaryAction();
-        return;
-      case UserSignupPhase.BLOCKED:
-      default:
-        return;
-    }
-  }, [
-    signupAndRun,
-    handleReadyPrimaryAction,
-    openPhoneVerificationModal,
-    product.type,
-    userSignupPhase,
   ]);
 
   /**

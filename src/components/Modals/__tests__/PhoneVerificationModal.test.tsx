@@ -20,9 +20,6 @@ vi.mock("../../../api/registration", () => ({
   completePhoneVerification: vi.fn(),
 }));
 
-const mockOnClose = vi.fn();
-const mockOnVerified = vi.fn();
-
 function makeContext(
   overrides: Partial<UserContextType> = {},
 ): UserContextType {
@@ -38,15 +35,12 @@ function makeContext(
 function renderModal(
   isOpen = true,
   contextOverrides: Partial<UserContextType> = {},
+  onClose: () => void = vi.fn(),
 ) {
   return render(
     <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
       <UserContext.Provider value={makeContext(contextOverrides)}>
-        <PhoneVerificationModal
-          isOpen={isOpen}
-          onClose={mockOnClose}
-          onVerified={mockOnVerified}
-        />
+        <PhoneVerificationModal isOpen={isOpen} onClose={onClose} />
       </UserContext.Provider>
     </AnalyticsContext.Provider>,
   );
@@ -122,11 +116,12 @@ describe("PhoneVerificationModal", () => {
     });
   });
 
-  it("submits verification code and calls onVerified", async () => {
+  it("submits verification code and calls refetchUserData", async () => {
     vi.mocked(registrationApi.initiatePhoneVerification).mockResolvedValue();
     vi.mocked(registrationApi.completePhoneVerification).mockResolvedValue();
+    const refetchUserData = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    renderModal();
+    renderModal(true, { refetchUserData });
 
     await user.type(getPhoneNumberInput(), "5551234567");
     await user.click(screen.getByRole("button", { name: "Send code" }));
@@ -139,19 +134,51 @@ describe("PhoneVerificationModal", () => {
     await user.click(screen.getByRole("button", { name: "Verify" }));
 
     await waitFor(() => {
-      expect(mockOnVerified).toHaveBeenCalled();
+      expect(refetchUserData).toHaveBeenCalled();
     });
     expect(registrationApi.completePhoneVerification).toHaveBeenCalledWith(
       "123456",
     );
   });
 
-  it("calls onClose when Cancel is clicked", async () => {
+  it("shows error when refetchUserData rejects after verification", async () => {
+    vi.mocked(registrationApi.initiatePhoneVerification).mockResolvedValue();
+    vi.mocked(registrationApi.completePhoneVerification).mockResolvedValue();
+    const refetchUserData = vi
+      .fn()
+      .mockRejectedValue(new Error("network failure"));
     const user = userEvent.setup();
-    renderModal();
+    renderModal(true, { refetchUserData });
+
+    await user.type(getPhoneNumberInput(), "5551234567");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+
+    await waitFor(() => {
+      expect(getVerificationCodeInput()).toBeInTheDocument();
+    });
+
+    await user.type(getVerificationCodeInput(), "123456");
+    await user.click(screen.getByRole("button", { name: "Verify" }));
+
+    await waitFor(() => {
+      expect(refetchUserData).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/unable to refresh your user's details/i),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("calls onClose and resets state when Cancel is clicked", async () => {
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    renderModal(true, {}, onClose);
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(mockOnClose).toHaveBeenCalled();
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("prevents duplicate phone submissions on rapid double-click", async () => {
@@ -188,9 +215,9 @@ describe("PhoneVerificationModal", () => {
           resolveCall = resolve;
         }),
     );
-
+    const refetchUserData = vi.fn().mockResolvedValue(undefined);
     const user = userEvent.setup();
-    renderModal();
+    renderModal(true, { refetchUserData });
 
     await user.type(getPhoneNumberInput(), "5551234567");
     await user.click(screen.getByRole("button", { name: "Send code" }));
@@ -209,7 +236,17 @@ describe("PhoneVerificationModal", () => {
 
     resolveCall!();
     await waitFor(() => {
-      expect(mockOnVerified).toHaveBeenCalledTimes(1);
+      expect(refetchUserData).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("applies the PatternFly dark theme class to the modal", () => {
+    renderModal();
+
+    const dialog = getPhoneVerificationDialog();
+    // The PatternFly Modal wraps content in a .pf-v6-c-modal-box
+    // element. Check the dark theme class is on the parent container.
+    const modalBox = dialog.closest(".pf-v6-c-modal-box");
+    expect(modalBox?.classList.contains("pf-v6-theme-dark")).toBe(true);
   });
 });

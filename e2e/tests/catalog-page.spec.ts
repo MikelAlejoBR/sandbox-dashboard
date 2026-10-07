@@ -43,174 +43,94 @@ test.describe("Catalog page", () => {
     });
   });
 
-  test.describe("Not signed up", { tag: "@mock-only" }, () => {
-    test("displays a generic banner and pre-signup card actions", async ({
-      page,
-    }) => {
-      await page.addInitScript((phase) => {
-        window.__playwrightOverrides__ ??= {};
-        window.__playwrightOverrides__.__signup__ ??= {};
-        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
-      }, UserSignupPhase.NOT_STARTED);
-      await page.goto("/");
+  test.describe(
+    "Landing page for non-ready users",
+    { tag: "@mock-only" },
+    () => {
+      test("shows the landing page when user has not started signup", async ({
+        page,
+      }) => {
+        await page.addInitScript((phase) => {
+          window.__playwrightOverrides__ ??= {};
+          window.__playwrightOverrides__.__signup__ ??= {};
+          window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+        }, UserSignupPhase.NOT_STARTED);
+        await page.goto("/");
 
-      // The banner should show the generic "Try Red Hat products" heading
-      // instead of "Welcome, John".
-      await expect(
-        page.getByRole("heading", {
-          level: 1,
-          name: "Try Red Hat products",
-        }),
-      ).toBeVisible();
-      await expect(
-        page.getByText("Explore, experiment, and see what"),
-      ).toBeVisible();
+        const hero = page.locator("#top");
 
-      // The product cards should still be visible.
-      const aapProductCard = page.getByRole("article", {
-        name: "Ansible Automation Platform product card",
+        // The landing page should be shown instead of the catalog.
+        await expect(
+          page.getByRole("heading", { level: 1, name: /Trying/ }),
+        ).toBeVisible();
+
+        // The catalog product cards should not be visible.
+        await expect(
+          page.getByRole("region", { name: "Product catalog" }),
+        ).not.toBeVisible();
+
+        // The CTA button should be visible in the hero section.
+        await expect(
+          hero.getByRole("button", { name: "Start your free trial" }),
+        ).toBeVisible();
       });
-      await expect(aapProductCard).toBeVisible();
 
-      // The AAP card should show "Provision" but no status label or
-      // delete button (since there's no instance).
-      await expect(
-        aapProductCard.getByRole("button", { name: "Provision" }),
-      ).toBeVisible();
-      await expect(
-        aapProductCard.getByRole("button", { name: "Delete instance" }),
-      ).not.toBeVisible();
+      test("shows the landing page with error info when user is blocked", async ({
+        page,
+      }) => {
+        await page.addInitScript((phase) => {
+          window.__playwrightOverrides__ ??= {};
+          window.__playwrightOverrides__.__signup__ ??= {};
+          window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+        }, UserSignupPhase.BLOCKED);
 
-      // The "Try it" cards should still be visible.
-      const openshiftCard = page.getByRole("article", {
-        name: "OpenShift product card",
+        await page.goto("/");
+
+        // The landing page should be shown with no CTA button.
+        await expect(
+          page.getByRole("heading", { level: 1, name: /Trying/ }),
+        ).toBeVisible();
       });
-      await expect(
-        openshiftCard.getByRole("button", { name: "Try it" }),
-      ).toBeVisible();
 
-      // RHDH stays disabled until the account is ready.
-      await expect(
-        page
-          .getByRole("article", {
-            name: "Red Hat Developer Hub product card",
-          })
-          .getByRole("button", { name: "Try it" }),
-      ).toBeDisabled();
-    });
-  });
+      test("shows the landing page with phone verification info", async ({
+        page,
+      }) => {
+        await page.addInitScript((phase) => {
+          window.__playwrightOverrides__ ??= {};
+          window.__playwrightOverrides__.__signup__ ??= {};
+          window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+        }, UserSignupPhase.PENDING_PHONE_VERIFICATION);
+
+        await page.goto("/");
+
+        const hero = page.locator("#top");
+
+        await expect(hero.getByText("Phone verification needed")).toBeVisible();
+
+        await expect(
+          hero.getByRole("button", { name: "Verify your phone" }),
+        ).toBeVisible();
+      });
+
+      test("shows the landing page with manual approval info", async ({
+        page,
+      }) => {
+        await page.addInitScript((phase) => {
+          window.__playwrightOverrides__ ??= {};
+          window.__playwrightOverrides__.__signup__ ??= {};
+          window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+        }, UserSignupPhase.PENDING_MANUAL_APPROVAL);
+
+        await page.goto("/");
+
+        await expect(
+          page.locator("#top").getByText("Pending manual approval"),
+        ).toBeVisible();
+      });
+    },
+  );
 
   test.describe("Welcome subtitle", { tag: "@mock-only" }, () => {
-    test("displays a blocked message when the user is blocked", async ({
-      page,
-    }) => {
-      await page.addInitScript((phase) => {
-        window.__playwrightOverrides__ ??= {};
-        window.__playwrightOverrides__.__signup__ ??= {};
-        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
-      }, UserSignupPhase.BLOCKED);
-
-      await page.goto("/");
-
-      await expect(
-        page.getByRole("heading", {
-          level: 4,
-          name: "Danger alert: The account is",
-        }),
-      ).toBeVisible();
-      await expect(page.getByText("Your account is not ready")).toBeVisible();
-    });
-
-    test("does not launch a product when the user is blocked", async ({
-      page,
-    }) => {
-      await page.addInitScript((phase) => {
-        window.__playwrightOverrides__ ??= {};
-        window.__playwrightOverrides__.__signup__ ??= {};
-        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
-      }, UserSignupPhase.BLOCKED);
-
-      await page.goto("/");
-
-      const tryItButton = page
-        .getByRole("article", { name: "OpenShift product card" })
-        .getByRole("button", { name: "Try it" });
-      await expect(tryItButton).toBeVisible();
-
-      // We are expecting the button to be a "no-op", so no new pages should
-      // have been opened.
-      const pageCountBefore = page.context().pages().length;
-      await tryItButton.click();
-      expect(page.context().pages()).toHaveLength(pageCountBefore);
-    });
-
-    test("displays a phone verification message when verification is pending", async ({
-      page,
-    }) => {
-      await page.addInitScript((phase) => {
-        window.__playwrightOverrides__ ??= {};
-        window.__playwrightOverrides__.__signup__ ??= {};
-        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
-      }, UserSignupPhase.PENDING_PHONE_VERIFICATION);
-
-      await page.goto("/");
-
-      await expect(
-        page.getByText('Click on "Try it" to initiate'),
-      ).toBeVisible();
-      await expect(
-        page
-          .getByRole("article", {
-            name: "Red Hat Developer Hub product card",
-          })
-          .getByRole("button", { name: "Try it" }),
-      ).toBeDisabled();
-    });
-
-    test("displays a manual approval message when approval is pending", async ({
-      page,
-    }) => {
-      await page.addInitScript((phase) => {
-        window.__playwrightOverrides__ ??= {};
-        window.__playwrightOverrides__.__signup__ ??= {};
-        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
-      }, UserSignupPhase.PENDING_MANUAL_APPROVAL);
-
-      await page.goto("/");
-
-      await expect(page.getByText("Please wait for")).toBeVisible();
-      await expect(
-        page
-          .getByRole("article", {
-            name: "Red Hat Developer Hub product card",
-          })
-          .getByRole("button", { name: "Try it" }),
-      ).toBeDisabled();
-    });
-
-    test("does not launch a product when manual approval is pending", async ({
-      page,
-    }) => {
-      await page.addInitScript((phase) => {
-        window.__playwrightOverrides__ ??= {};
-        window.__playwrightOverrides__.__signup__ ??= {};
-        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
-      }, UserSignupPhase.PENDING_MANUAL_APPROVAL);
-
-      await page.goto("/");
-
-      const tryItButton = page
-        .getByRole("article", { name: "OpenShift product card" })
-        .getByRole("button", { name: "Try it" });
-      await expect(tryItButton).toBeVisible();
-
-      // A successful launch opens a new page. Compare the context page
-      // count instead of waiting for a popup that must not appear.
-      const pageCountBefore = page.context().pages().length;
-      await tryItButton.click();
-      expect(page.context().pages()).toHaveLength(pageCountBefore);
-    });
-
     test("displays the trial expiration date and information", async ({
       page,
     }) => {
