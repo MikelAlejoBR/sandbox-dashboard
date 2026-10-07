@@ -1,3 +1,5 @@
+import type Keycloak from "keycloak-js";
+
 import type { AppConfig } from "../config/config";
 import { Environment } from "../config/config";
 import { deleteCookie, getCookie } from "../utils/cookie-utils";
@@ -7,6 +9,46 @@ import initializeKeycloak, {
   createAndConfigureKeycloak,
   SESSION_HINT_COOKIE_NAME,
 } from "./initializeKeycloak";
+
+/**
+ * Builds an unauthenticated context value with a login action that is guarded
+ * against a double initialization of the Keycloak adapter.
+ *
+ * This guard is necessary because the browser's back-forward cache preserves
+ * the entire JS heap, including any already initialized Keycloak instances,
+ * and the Keycloak library only allows one `init()` call per instance.
+ * @param keycloakPromise the promise of the Keycloak adapter to be resolved
+ * and initialized, if pertinent.
+ * @param authenticationError any authentication errors that should be added
+ * to the unauthenticated context.
+ * @returns the built unauthenticated context.
+ */
+function buildUnauthenticatedContext(
+  keycloakPromise: Promise<Keycloak>,
+  authenticationError?: string,
+): AuthenticatedContextValue {
+  // The use of a promise is to protect ourselves against a user that clicks
+  // the button multiple times. The promise will get assigned below, and any
+  // subsequent clicks will simply wait on the promise that it's assigned.
+  // Once the adapter gets initialized, the user will begin the login flow
+  // again.
+  let initPromise: Promise<boolean> | null = null;
+
+  return {
+    authenticated: false,
+    ...(authenticationError && { authenticationError }),
+    login: async () => {
+      const kc = await keycloakPromise;
+
+      if (!initPromise) {
+        initPromise = kc.init({ checkLoginIframe: false });
+      }
+      await initPromise;
+
+      kc.login();
+    },
+  };
+}
 
 /**
  * Resolves the authentication state for the application.
@@ -105,15 +147,10 @@ export async function resolveAuthentication(
 
       const freshKeycloakPromise = createAndConfigureKeycloak(configuration);
       freshKeycloakPromise.catch(() => {});
-      return {
-        authenticated: false,
-        authenticationError: err instanceof Error ? err.message : String(err),
-        login: async () => {
-          const freshKeycloak = await freshKeycloakPromise;
-          await freshKeycloak.init({ checkLoginIframe: false });
-          freshKeycloak.login();
-        },
-      };
+      return buildUnauthenticatedContext(
+        freshKeycloakPromise,
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
@@ -133,25 +170,14 @@ export async function resolveAuthentication(
     // redirect, clear the hint cookie, and surface the error.
     logger.error("OIDC error:", oidcError, oidcErrorDescription);
     deleteCookie(SESSION_HINT_COOKIE_NAME);
-    return {
-      authenticated: false,
-      authenticationError: oidcErrorDescription ?? oidcError,
-      login: async () => {
-        const kc = await keycloakPromise;
-        await kc.init({ checkLoginIframe: false });
-        kc.login();
-      },
-    };
+
+    return buildUnauthenticatedContext(
+      keycloakPromise,
+      oidcErrorDescription ?? oidcError,
+    );
   }
 
   // When there's no hint, no callbacks and no errors, that means that it's
   // an unauthenticated visitor.
-  return {
-    authenticated: false,
-    login: async () => {
-      const kc = await keycloakPromise;
-      await kc.init({ checkLoginIframe: false });
-      kc.login();
-    },
-  };
+  return buildUnauthenticatedContext(keycloakPromise);
 }
