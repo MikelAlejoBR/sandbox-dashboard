@@ -1,0 +1,28 @@
+.activation-code__container {
+  padding: 16px;
+  text-align: center;
+}
+
+.activation-code__button::part(button) {
+  background: none;
+  border: none;
+  color: var(--rh-color-text-primary-on-dark);
+  font-size: var(--rh-font-size-body-text-sm);
+  text-decoration: underline var(--rh-border-width-sm, 1px) dashed;
+  text-underline-offset: max(1px, 0.23em);
+  transition:
+    color 0.3s ease,
+    text-decoration-color 0.3s ease,
+    text-underline-offset 0.3s ease;
+}
+
+.activation-code__button::part(button):hover,
+.activation-code__button::part(button):focus {
+  background: none;
+  border: none;
+  color: var(--rh-color-interactive-primary);
+  outline: none;
+  text-decoration: underline var(--rh-border-width-sm, 1px) dashed;
+  text-decoration-color: inherit;
+  text-underline-offset: max(5px, 0.28em);
+}

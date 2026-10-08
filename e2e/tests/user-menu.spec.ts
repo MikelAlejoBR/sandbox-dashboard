@@ -3,13 +3,22 @@ import test, { expect } from "@playwright/test";
 import { UserSignupPhase } from "../../src/hooks/userSignupPhase";
 
 test.describe("User menu", () => {
-  test("shows the user menu toggle", async ({ page }) => {
-    await page.goto("/");
+  test(
+    "shows the user menu toggle",
+    { tag: "@mock-only" },
+    async ({ page }) => {
+      await page.addInitScript((phase) => {
+        window.__playwrightOverrides__ ??= {};
+        window.__playwrightOverrides__.__signup__ ??= {};
+        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+      }, UserSignupPhase.READY);
+      await page.goto("/");
 
-    const toggle = page.getByRole("button", { name: "User menu" });
+      const toggle = page.getByRole("button", { name: "User menu" });
 
-    await expect(toggle).toBeVisible();
-  });
+      await expect(toggle).toBeVisible();
+    },
+  );
 
   test(
     "is not visible when the user is not ready",

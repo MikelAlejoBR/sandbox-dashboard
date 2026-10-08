@@ -21,6 +21,7 @@ import { verifyActivationCode } from "../../api/registration";
 import { SUPPORT_EMAIL } from "../../const";
 import { ApiError } from "../../error/ApiError";
 import { mapApiErrorMessage } from "../../error/mapApiErrorMessage";
+import { useUserContext } from "../../hooks/UserContext";
 import logger from "../../utils/logger";
 
 const ACTIVATION_CODE_ERROR_RULES = [
@@ -54,7 +55,6 @@ const CODE_LENGTH = 5;
 type AccessCodeInputModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onVerified: () => void;
 };
 
 function CodeBoxes({
@@ -183,25 +183,30 @@ function CodeBoxes({
 export function AccessCodeInputModal({
   isOpen,
   onClose,
-  onVerified,
 }: AccessCodeInputModalProps) {
+  const { refetchUserData } = useUserContext();
+
   const [codeChars, setCodeChars] = useState<string[]>(
     Array(CODE_LENGTH).fill(""),
   );
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const isSubmittingRef = useRef(false);
+  /** Tracks whether the activation code was already accepted so that
+   *  a retry after a refetch failure skips the verification call. */
+  const verifiedRef = useRef(false);
 
   const resetState = () => {
     setCodeChars(Array(CODE_LENGTH).fill(""));
     setError(null);
     setSubmitting(false);
     isSubmittingRef.current = false;
+    verifiedRef.current = false;
   };
 
   const handleClose = () => {
-    resetState();
     onClose();
+    resetState();
   };
 
   const handleSubmit = async () => {
@@ -220,9 +225,29 @@ export function AccessCodeInputModal({
     isSubmittingRef.current = true;
     setSubmitting(true);
     try {
-      await verifyActivationCode(code);
-      resetState();
-      onVerified();
+      // Skip the verification call when the code was already accepted
+      // on a previous attempt but the refetch failed.
+      if (!verifiedRef.current) {
+        await verifyActivationCode(code);
+        verifiedRef.current = true;
+      }
+
+      // Once the activation code has been verified, refetch the user
+      // data so the UI transitions to the ready state. On error,
+      // inform the user about what happened.
+      try {
+        await refetchUserData();
+        handleClose();
+      } catch (refetchErr) {
+        logger.warn(
+          "Refetching the user's signup after using an activation code threw an error",
+          refetchErr,
+        );
+
+        setError(
+          "The activation code was accepted, but we were unable to refresh your user's details at the moment. You might have to refresh the page in order to start using the product trials. Sorry for the inconvenience.",
+        );
+      }
     } catch (err) {
       const fallback = `Unable to verify your code. Please contact ${SUPPORT_EMAIL}`;
 

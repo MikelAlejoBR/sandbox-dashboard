@@ -3,7 +3,15 @@ import test, { expect } from "@playwright/test";
 import { UserSignupPhase } from "../../src/hooks/userSignupPhase";
 
 test.describe("Catalog page", () => {
-  test.describe("Banner", () => {
+  test.describe("Banner", { tag: "@mock-only" }, () => {
+    test.beforeEach(async ({ page }) => {
+      await page.addInitScript((phase) => {
+        window.__playwrightOverrides__ ??= {};
+        window.__playwrightOverrides__.__signup__ ??= {};
+        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+      }, UserSignupPhase.READY);
+    });
+
     test("displays Red Hat trial and contact sales images", async ({
       page,
     }) => {
@@ -163,8 +171,13 @@ test.describe("Catalog page", () => {
     });
   });
 
-  test.describe("Product catalog", () => {
+  test.describe("Product catalog", { tag: "@mock-only" }, () => {
     test.beforeEach(async ({ page }) => {
+      await page.addInitScript((phase) => {
+        window.__playwrightOverrides__ ??= {};
+        window.__playwrightOverrides__.__signup__ ??= {};
+        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+      }, UserSignupPhase.READY);
       await page.goto("/");
     });
 
@@ -210,13 +223,15 @@ test.describe("Catalog page", () => {
     test("hides the AAP card when ansible is disabled in UI config", async ({
       page,
     }) => {
-      await page.addInitScript(() => {
+      await page.addInitScript((phase) => {
         window.__playwrightOverrides__ ??= {};
+        window.__playwrightOverrides__.__signup__ ??= {};
+        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
         window.__playwrightOverrides__.__uiconfig__ ??= {};
         window.__playwrightOverrides__.__uiconfig__.__disabledIntegrations__ = [
           "ansible-automation-platform",
         ];
-      });
+      }, UserSignupPhase.READY);
 
       await page.goto("/");
 
@@ -239,6 +254,12 @@ test.describe("Catalog page", () => {
     test("opens the product URL when startDate is old enough", async ({
       page,
     }) => {
+      await page.addInitScript((phase) => {
+        window.__playwrightOverrides__ ??= {};
+        window.__playwrightOverrides__.__signup__ ??= {};
+        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+      }, UserSignupPhase.READY);
+
       // The mock console host is not a real cluster, so fulfill the derived
       // RHDH URL and assert the popup target instead of waiting on DNS.
       await page
@@ -274,11 +295,18 @@ test.describe("Catalog page", () => {
       // for the whole assertion, instead of a wall-clock timestamp that
       // can drift past the 15-second grace period.
       await page.clock.setFixedTime(new Date(frozenStartDate));
-      await page.addInitScript((startDate) => {
-        window.__playwrightOverrides__ ??= {};
-        window.__playwrightOverrides__.__signup__ ??= {};
-        window.__playwrightOverrides__.__signup__.__startDate__ = startDate;
-      }, frozenStartDate);
+      await page.addInitScript(
+        ({ startDate, phase }) => {
+          window.__playwrightOverrides__ ??= {};
+          window.__playwrightOverrides__.__signup__ ??= {};
+          window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+          window.__playwrightOverrides__.__signup__.__startDate__ = startDate;
+        },
+        {
+          startDate: frozenStartDate,
+          phase: UserSignupPhase.READY,
+        },
+      );
 
       await page.goto("/");
 

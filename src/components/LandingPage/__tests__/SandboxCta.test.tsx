@@ -23,6 +23,14 @@ vi.mock("@rhds/elements/react/rh-icon/rh-icon.js", () => ({
   Icon: () => <span data-testid="rh-icon" />,
 }));
 
+// Mock ActivationCode so we don't pull in RHDS <rh-button> or the
+// AccessCodeInputModal tree.
+vi.mock("../ActivationCode", () => ({
+  ActivationCode: () => (
+    <div data-testid="activation-code">Have an activation code?</div>
+  ),
+}));
+
 const mockLogin = vi.fn();
 
 function makeAuthContext(
@@ -222,6 +230,104 @@ describe("SandboxCta", () => {
       expect(
         screen.getByRole("button", { name: "Go to the Sandbox" }),
       ).toBeEnabled();
+    });
+  });
+
+  describe("activation code visibility", () => {
+    it("shows the activation code when authenticated and NOT_STARTED", () => {
+      renderCta(
+        { authenticated: true },
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+      );
+
+      expect(screen.getByTestId("activation-code")).toBeInTheDocument();
+    });
+
+    it("hides the activation code when unauthenticated", () => {
+      renderCta(
+        { authenticated: false },
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
+    });
+
+    it("hides the activation code when authenticated but READY", () => {
+      renderCta(
+        { authenticated: true },
+        { userSignupPhase: UserSignupPhase.READY },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
+    });
+
+    it("hides the activation code when authenticated but INITIAL_FETCH", () => {
+      renderCta(
+        { authenticated: true },
+        { userSignupPhase: UserSignupPhase.INITIAL_FETCH },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
+    });
+
+    it("hides the activation code when authenticated but SIGNING_UP", () => {
+      renderCta(
+        { authenticated: true },
+        { userSignupPhase: UserSignupPhase.SIGNING_UP },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
+    });
+
+    it("hides the activation code when authenticated but BLOCKED", () => {
+      renderCta(
+        { authenticated: true },
+        { userSignupPhase: UserSignupPhase.BLOCKED },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
+    });
+
+    it("hides the activation code when authenticated but PENDING_PHONE_VERIFICATION", () => {
+      renderCta(
+        { authenticated: true },
+        {
+          userSignupPhase: UserSignupPhase.PENDING_PHONE_VERIFICATION,
+        },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
+    });
+
+    it("hides the activation code when authenticated but PENDING_MANUAL_APPROVAL", () => {
+      renderCta(
+        { authenticated: true },
+        {
+          userSignupPhase: UserSignupPhase.PENDING_MANUAL_APPROVAL,
+        },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
+    });
+
+    it("hides the activation code when authenticated but PROVISIONING", () => {
+      renderCta(
+        { authenticated: true },
+        { userSignupPhase: UserSignupPhase.PROVISIONING },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
+    });
+
+    it("hides the activation code when authenticated but PROVISIONING_TIMED_OUT", () => {
+      renderCta(
+        { authenticated: true },
+        {
+          userSignupPhase: UserSignupPhase.PROVISIONING_TIMED_OUT,
+        },
+      );
+
+      expect(screen.queryByTestId("activation-code")).not.toBeInTheDocument();
     });
   });
 

@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import React from "react";
 
 import { setTokenGetter } from "./api/authFetch";
@@ -7,6 +8,7 @@ import {
   AuthenticatedContext,
   type AuthenticatedUser,
 } from "./auth/AuthenticatedContext";
+import { readyUserFixture } from "./mocks/fixtures";
 import { server } from "./mocks/server";
 import type { BootstrapData } from "./types/main";
 
@@ -74,6 +76,14 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 test("renders without crashing in dev bypass mode", async () => {
+  // Override the default MSW state so the authenticated user sees a
+  // ready signup and the catalog page renders.
+  server.use(
+    http.get("*/api/v1/signup", () => {
+      return HttpResponse.json(readyUserFixture);
+    }),
+  );
+
   const fakeAuthenticatedContextValue: AuthenticatedUser = {
     authenticated: true,
     token: "dev-fake-token",
@@ -96,7 +106,7 @@ test("renders without crashing in dev bypass mode", async () => {
 
   // Wait for user data to load and verify the catalog renders.
   await waitFor(() => {
-    expect(screen.getByText("Have an activation code?")).toBeInTheDocument();
+    expect(screen.getByText(/Welcome,/)).toBeInTheDocument();
   });
 
   // "Developer Sandbox" appears in both the masthead brand and user

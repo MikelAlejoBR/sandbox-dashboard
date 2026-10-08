@@ -1,9 +1,5 @@
-import { act, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen } from "@testing-library/react";
 
-import { UserContext, type UserContextType } from "../../../hooks/UserContext";
-import { UserSignupPhase } from "../../../hooks/userSignupPhase";
-import { readyUserFixture } from "../../../mocks/fixtures";
 import { CatalogPage } from "../CatalogPage";
 
 vi.mock("../CatalogBanner", () => ({
@@ -14,74 +10,14 @@ vi.mock("../CatalogGrid", () => ({
   CatalogGrid: () => <div data-testid="catalog-grid" />,
 }));
 
-let capturedOnVerified: (() => void) | undefined;
-
-vi.mock("../../Modals", () => ({
-  AccessCodeInputModal: ({
-    isOpen,
-    onVerified,
-  }: {
-    isOpen: boolean;
-    onClose: () => void;
-    onVerified: () => void;
-  }) => {
-    capturedOnVerified = onVerified;
-    return isOpen ? <div data-testid="access-code-modal" /> : null;
-  },
-}));
-
-function makeSandboxContext(
-  overrides: Partial<UserContextType> = {},
-): UserContextType {
-  return {
-    user: readyUserFixture,
-    userSignupPhase: UserSignupPhase.READY,
-    refetchUserData: vi.fn().mockResolvedValue(undefined),
-    signupUser: vi.fn(),
-    ...overrides,
-  };
-}
-
-function renderPage(overrides: Partial<UserContextType> = {}) {
-  const ctx = makeSandboxContext(overrides);
-  const result = render(
-    <UserContext.Provider value={ctx}>
-      <CatalogPage />
-    </UserContext.Provider>,
-  );
-  return { ...result, ctx };
-}
-
 describe("CatalogPage", () => {
-  beforeEach(() => {
-    capturedOnVerified = undefined;
+  it("renders the catalog banner", () => {
+    render(<CatalogPage />);
+    expect(screen.getByTestId("catalog-banner")).toBeInTheDocument();
   });
 
-  it("renders activation code link", () => {
-    renderPage();
-    expect(screen.getByText("Have an activation code?")).toBeInTheDocument();
-    expect(screen.getByText("Click here")).toBeInTheDocument();
-  });
-
-  it("opens modal when 'Click here' is clicked", async () => {
-    renderPage();
-    expect(screen.queryByTestId("access-code-modal")).not.toBeInTheDocument();
-
-    await userEvent.click(screen.getByText("Click here"));
-    expect(screen.getByTestId("access-code-modal")).toBeInTheDocument();
-  });
-
-  it("closes modal and calls refetchUserData when onVerified fires", async () => {
-    const { ctx } = renderPage();
-
-    await userEvent.click(screen.getByText("Click here"));
-    expect(screen.getByTestId("access-code-modal")).toBeInTheDocument();
-
-    await act(() => {
-      capturedOnVerified!();
-    });
-
-    expect(screen.queryByTestId("access-code-modal")).not.toBeInTheDocument();
-    expect(ctx.refetchUserData).toHaveBeenCalledTimes(1);
+  it("renders the catalog grid", () => {
+    render(<CatalogPage />);
+    expect(screen.getByTestId("catalog-grid")).toBeInTheDocument();
   });
 });

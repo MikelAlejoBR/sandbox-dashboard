@@ -171,6 +171,42 @@ describe("PhoneVerificationModal", () => {
     });
   });
 
+  it("retries only the refetch when the phone was already verified", async () => {
+    vi.mocked(registrationApi.initiatePhoneVerification).mockResolvedValue();
+    vi.mocked(registrationApi.completePhoneVerification).mockResolvedValue();
+    const mockRefetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("network failure"))
+      .mockResolvedValueOnce(undefined);
+    const onClose = vi.fn();
+    const user = userEvent.setup();
+    renderModal(true, { refetchUserData: mockRefetch }, onClose);
+
+    await user.type(getPhoneNumberInput(), "5551234567");
+    await user.click(screen.getByRole("button", { name: "Send code" }));
+
+    await waitFor(() => {
+      expect(getVerificationCodeInput()).toBeInTheDocument();
+    });
+
+    await user.type(getVerificationCodeInput(), "123456");
+
+    // First attempt: verification succeeds, refetch fails.
+    await user.click(screen.getByRole("button", { name: "Verify" }));
+    await waitFor(() => {
+      expect(screen.getByText(/unable to refresh/i)).toBeInTheDocument();
+    });
+    expect(registrationApi.completePhoneVerification).toHaveBeenCalledTimes(1);
+
+    // Second attempt: should skip verification, retry only the refetch.
+    await user.click(screen.getByRole("button", { name: "Verify" }));
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+    expect(registrationApi.completePhoneVerification).toHaveBeenCalledTimes(1);
+    expect(mockRefetch).toHaveBeenCalledTimes(2);
+  });
+
   it("calls onClose and resets state when Cancel is clicked", async () => {
     const onClose = vi.fn();
     const user = userEvent.setup();
