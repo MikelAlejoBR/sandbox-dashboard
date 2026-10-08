@@ -8,6 +8,7 @@ import { useAnalyticsContext } from "../../hooks/AnalyticsContext";
 import { useUserContext } from "../../hooks/UserContext";
 import { UserSignupPhase } from "../../hooks/userSignupPhase";
 import { PhoneVerificationModal } from "../Modals";
+import { ActivationCode } from "./ActivationCode";
 import { SandboxCtaMoreInfo } from "./SandboxCtaMoreInfo";
 
 export function SandboxCta() {
@@ -64,6 +65,16 @@ export function SandboxCta() {
     userSignupPhase === UserSignupPhase.PENDING_MANUAL_APPROVAL;
 
   /**
+   * Determines if the activation code button is visible. Since it's a special
+   * signup flow, we only want it to show to people that are authenticated and
+   * their signup has not started yet.
+   */
+  const isActivationCodeVisible =
+    auth.authenticated &&
+    isButtonVisible &&
+    userSignupPhase === UserSignupPhase.NOT_STARTED;
+
+  /**
    * Performs an action based on the user's status.
    */
   const action = () => {
@@ -111,6 +122,7 @@ export function SandboxCta() {
           {buttonLabel()}
         </button>
       )}
+      {isActivationCodeVisible && <ActivationCode />}
       <SandboxCtaMoreInfo />
       <PhoneVerificationModal
         isOpen={isPhoneVerificationModalOpen}

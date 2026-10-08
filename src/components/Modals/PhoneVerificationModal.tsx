@@ -108,6 +108,9 @@ export function PhoneVerificationModal({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inFlightRef = useRef(false);
+  /** Tracks whether the phone was already verified so that a retry
+   *  after a refetch failure skips the verification call. */
+  const phoneVerifiedRef = useRef(false);
 
   const resetState = () => {
     setStep("phone");
@@ -117,12 +120,13 @@ export function PhoneVerificationModal({
     setError(null);
     setSubmitting(false);
     inFlightRef.current = false;
+    phoneVerifiedRef.current = false;
   };
 
   const handleClose = () => {
     trackAnalytics("Cancel Verification", "Verification");
-    resetState();
     onClose();
+    resetState();
   };
 
   const handlePhoneSubmit = async (e: FormEvent) => {
@@ -184,24 +188,29 @@ export function PhoneVerificationModal({
     setSubmitting(true);
     trackAnalytics("Start Trial", "Verification");
     try {
-      await completePhoneVerification(verificationCode);
-      resetState();
+      // Skip the verification call when the phone was already verified
+      // on a previous attempt but the refetch failed.
+      if (!phoneVerifiedRef.current) {
+        await completePhoneVerification(verificationCode);
+        phoneVerifiedRef.current = true;
+      }
 
-      // Once the phone has been verified, close the modal and trigger a
-      // refetch of the user data. On error inform the user about what
-      // happened.
-      refetchUserData()
-        .then(handleClose)
-        .catch((refetchErr) => {
-          logger.warn(
-            "Refetching the user's signup after verifying the user's phone threw an error",
-            refetchErr,
-          );
+      // Once the phone has been verified, refetch the user data so
+      // the UI transitions to the ready state. On error, inform the
+      // user about what happened.
+      try {
+        await refetchUserData();
+        handleClose();
+      } catch (refetchErr) {
+        logger.warn(
+          "Refetching the user's signup after verifying the user's phone threw an error",
+          refetchErr,
+        );
 
-          setError(
-            "The phone was successfully verified, but we were unable to refresh your user's details at the moment. You might have to refresh the page in order to start using the product trials. Sorry for the inconvenience.",
-          );
-        });
+        setError(
+          "The phone was successfully verified, but we were unable to refresh your user's details at the moment. You might have to refresh the page in order to start using the product trials. Sorry for the inconvenience.",
+        );
+      }
     } catch (err) {
       if (err instanceof ApiError) {
         setError(

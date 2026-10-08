@@ -2,6 +2,9 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import * as registrationApi from "../../../api/registration";
+import { UserContext, type UserContextType } from "../../../hooks/UserContext";
+import { UserSignupPhase } from "../../../hooks/userSignupPhase";
+import { readyUserFixture } from "../../../mocks/fixtures";
 import { AccessCodeInputModal } from "../AccessCodeInputModal";
 
 vi.mock("../../../api/registration", () => ({
@@ -9,16 +12,30 @@ vi.mock("../../../api/registration", () => ({
 }));
 
 const mockOnClose = vi.fn();
-const mockOnVerified = vi.fn();
 
-function renderModal(isOpen = true) {
-  return render(
-    <AccessCodeInputModal
-      isOpen={isOpen}
-      onClose={mockOnClose}
-      onVerified={mockOnVerified}
-    />,
+function makeUserContext(
+  overrides: Partial<UserContextType> = {},
+): UserContextType {
+  return {
+    user: readyUserFixture,
+    userSignupPhase: UserSignupPhase.NOT_STARTED,
+    refetchUserData: vi.fn().mockResolvedValue(undefined),
+    signupUser: vi.fn(),
+    ...overrides,
+  };
+}
+
+function renderModal(
+  isOpen = true,
+  userOverrides: Partial<UserContextType> = {},
+) {
+  const ctx = makeUserContext(userOverrides);
+  const result = render(
+    <UserContext.Provider value={ctx}>
+      <AccessCodeInputModal isOpen={isOpen} onClose={mockOnClose} />
+    </UserContext.Provider>,
   );
+  return { ...result, ctx };
 }
 
 function getCodeBox(index: number) {
@@ -61,7 +78,25 @@ describe("AccessCodeInputModal", () => {
     ).toBeInTheDocument();
   });
 
-  it("submits the full code and calls onVerified", async () => {
+  it("submits the full code and calls refetchUserData", async () => {
+    vi.mocked(registrationApi.verifyActivationCode).mockResolvedValue();
+    const user = userEvent.setup();
+    const { ctx } = renderModal();
+
+    await user.type(getCodeBox(0), "A");
+    await user.type(getCodeBox(1), "B");
+    await user.type(getCodeBox(2), "C");
+    await user.type(getCodeBox(3), "D");
+    await user.type(getCodeBox(4), "E");
+    await user.click(screen.getByText("Start trial"));
+
+    await waitFor(() => {
+      expect(ctx.refetchUserData).toHaveBeenCalledTimes(1);
+    });
+    expect(registrationApi.verifyActivationCode).toHaveBeenCalledWith("ABCDE");
+  });
+
+  it("closes the modal after a successful refetch", async () => {
     vi.mocked(registrationApi.verifyActivationCode).mockResolvedValue();
     const user = userEvent.setup();
     renderModal();
@@ -74,9 +109,62 @@ describe("AccessCodeInputModal", () => {
     await user.click(screen.getByText("Start trial"));
 
     await waitFor(() => {
-      expect(mockOnVerified).toHaveBeenCalled();
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
-    expect(registrationApi.verifyActivationCode).toHaveBeenCalledWith("ABCDE");
+  });
+
+  it("shows an error when refetchUserData fails after a successful activation", async () => {
+    vi.mocked(registrationApi.verifyActivationCode).mockResolvedValue();
+    const user = userEvent.setup();
+    renderModal(true, {
+      refetchUserData: vi.fn().mockRejectedValue(new Error("refetch failed")),
+    });
+
+    await user.type(getCodeBox(0), "A");
+    await user.type(getCodeBox(1), "B");
+    await user.type(getCodeBox(2), "C");
+    await user.type(getCodeBox(3), "D");
+    await user.type(getCodeBox(4), "E");
+    await user.click(screen.getByText("Start trial"));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /The activation code was accepted, but we were unable to refresh/,
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("retries only the refetch when the activation code was already accepted", async () => {
+    vi.mocked(registrationApi.verifyActivationCode).mockResolvedValue();
+    const mockRefetch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("refetch failed"))
+      .mockResolvedValueOnce(undefined);
+    const user = userEvent.setup();
+    renderModal(true, { refetchUserData: mockRefetch });
+
+    await user.type(getCodeBox(0), "A");
+    await user.type(getCodeBox(1), "B");
+    await user.type(getCodeBox(2), "C");
+    await user.type(getCodeBox(3), "D");
+    await user.type(getCodeBox(4), "E");
+
+    // First attempt: verification succeeds, refetch fails.
+    await user.click(screen.getByText("Start trial"));
+    await waitFor(() => {
+      expect(screen.getByText(/unable to refresh/)).toBeInTheDocument();
+    });
+    expect(registrationApi.verifyActivationCode).toHaveBeenCalledTimes(1);
+
+    // Second attempt: should skip verification, retry only the refetch.
+    await user.click(screen.getByText("Start trial"));
+    await waitFor(() => {
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+    expect(registrationApi.verifyActivationCode).toHaveBeenCalledTimes(1);
+    expect(mockRefetch).toHaveBeenCalledTimes(2);
   });
 
   it("shows error from API", async () => {
@@ -129,7 +217,7 @@ describe("AccessCodeInputModal", () => {
     );
 
     const user = userEvent.setup();
-    renderModal();
+    const { ctx } = renderModal();
 
     await user.type(getCodeBox(0), "A");
     await user.type(getCodeBox(1), "B");
@@ -145,7 +233,7 @@ describe("AccessCodeInputModal", () => {
 
     resolveCall!();
     await waitFor(() => {
-      expect(mockOnVerified).toHaveBeenCalledTimes(1);
+      expect(ctx.refetchUserData).toHaveBeenCalledTimes(1);
     });
   });
 });

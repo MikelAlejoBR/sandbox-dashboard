@@ -1,5 +1,6 @@
 import test, { expect } from "@playwright/test";
 
+import { UserSignupPhase } from "../../src/hooks/userSignupPhase";
 import { AAPMockPhase } from "../../src/mocks/handlers/aap-mock-phase";
 
 test.describe(
@@ -7,6 +8,11 @@ test.describe(
   { tag: "@mock-only" },
   () => {
     test.beforeEach(async ({ page }) => {
+      await page.addInitScript((phase) => {
+        window.__playwrightOverrides__ ??= {};
+        window.__playwrightOverrides__.__signup__ ??= {};
+        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+      }, UserSignupPhase.READY);
       await page.goto("/");
       await expect(
         page.getByRole("article", {

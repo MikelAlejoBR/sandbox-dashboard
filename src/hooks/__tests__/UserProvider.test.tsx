@@ -8,6 +8,7 @@ import {
   type AuthenticatedContextValue,
 } from "../../auth/AuthenticatedContext";
 import { SUPPORT_EMAIL } from "../../const";
+import { readyUserFixture } from "../../mocks/fixtures";
 import { server } from "../../mocks/server";
 import type { BootstrapData } from "../../types/main";
 import { useUserContext } from "../UserContext";
@@ -88,6 +89,12 @@ describe("UserProvider", () => {
   });
 
   it("fetches user data and provides it via context", async () => {
+    server.use(
+      http.get("*/api/v1/signup", () => {
+        return HttpResponse.json(readyUserFixture);
+      }),
+    );
+
     renderProvider();
 
     await waitFor(() => {

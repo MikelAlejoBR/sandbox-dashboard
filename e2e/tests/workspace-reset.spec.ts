@@ -1,8 +1,15 @@
 import test, { expect } from "@playwright/test";
 
-test.describe("Reset workspaces modal", () => {
+import { UserSignupPhase } from "../../src/hooks/userSignupPhase";
+
+test.describe("Reset workspaces modal", { tag: "@mock-only" }, () => {
   test.describe("opened from the user menu", () => {
     test.beforeEach(async ({ page }) => {
+      await page.addInitScript((phase) => {
+        window.__playwrightOverrides__ ??= {};
+        window.__playwrightOverrides__.__signup__ ??= {};
+        window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+      }, UserSignupPhase.READY);
       await page.goto("/");
       await page.getByRole("button", { name: "User menu" }).click();
       await page.getByRole("menuitem", { name: "Reset Workspaces" }).click();
@@ -86,71 +93,33 @@ test.describe("Reset workspaces modal", () => {
       await expect(modal).not.toBeVisible();
     });
 
-    test(
-      "shows the initial confirm button when reopened after cancelling",
-      { tag: "@mock-only" },
-      async ({ page }) => {
-        const modal = page.getByRole("dialog", { name: "Reset workspaces" });
-        await expect(modal).toBeVisible();
+    test("shows the initial confirm button when reopened after cancelling", async ({
+      page,
+    }) => {
+      const modal = page.getByRole("dialog", { name: "Reset workspaces" });
+      await expect(modal).toBeVisible();
 
-        // Click the primary button.
-        await page
-          .getByRole("button", { name: "I understand and I want to reset" })
-          .click();
+      // Click the primary button.
+      await page
+        .getByRole("button", { name: "I understand and I want to reset" })
+        .click();
 
-        // Close the modal.
-        await page.getByRole("button", { name: "Cancel" }).click();
+      // Close the modal.
+      await page.getByRole("button", { name: "Cancel" }).click();
 
-        // Reopen the modal.
-        await page.getByRole("button", { name: "User menu" }).click();
-        await page.getByRole("menuitem", { name: "Reset Workspaces" }).click();
-
-        // The main button should be back to the initial state, not "confirmed".
-        await expect(
-          page.getByRole("button", {
-            name: "I understand and I want to reset",
-          }),
-        ).toBeVisible();
-      },
-    );
-
-    test(
-      "closes the modal after a successful reset",
-      { tag: "@mock-only" },
-      async ({ page }) => {
-        const modal = page.getByRole("dialog", { name: "Reset workspaces" });
-
-        // Click the primary button.
-        await modal
-          .getByRole("button", { name: "I understand and I want to reset" })
-          .click();
-
-        // Confirm the operation
-        await modal
-          .getByRole("button", { name: "Reset my workspaces" })
-          .click();
-
-        // Confirm that the modal does not show up anymore.
-        await expect(modal).not.toBeVisible();
-      },
-    );
-  });
-
-  test(
-    "shows an error when reset fails",
-    { tag: "@mock-only" },
-    async ({ page }) => {
-      await page.addInitScript(() => {
-        window.__playwrightOverrides__ ??= {};
-        window.__playwrightOverrides__.__workspaces__ ??= {};
-        window.__playwrightOverrides__.__workspaces__.__forceError__ = true;
-      });
-
-      await page.goto("/");
-
+      // Reopen the modal.
       await page.getByRole("button", { name: "User menu" }).click();
       await page.getByRole("menuitem", { name: "Reset Workspaces" }).click();
 
+      // The main button should be back to the initial state, not "confirmed".
+      await expect(
+        page.getByRole("button", {
+          name: "I understand and I want to reset",
+        }),
+      ).toBeVisible();
+    });
+
+    test("closes the modal after a successful reset", async ({ page }) => {
       const modal = page.getByRole("dialog", { name: "Reset workspaces" });
 
       // Click the primary button.
@@ -161,16 +130,44 @@ test.describe("Reset workspaces modal", () => {
       // Confirm the operation
       await modal.getByRole("button", { name: "Reset my workspaces" }).click();
 
-      // Check that the alert shows.
-      await expect(
-        modal.getByRole("heading", {
-          level: 4,
-          name: "Danger alert: Unable to reset your workspaces",
-        }),
-      ).toBeVisible();
-      await expect(
-        modal.getByRole("button", { name: "Copy technical details" }),
-      ).toBeVisible();
-    },
-  );
+      // Confirm that the modal does not show up anymore.
+      await expect(modal).not.toBeVisible();
+    });
+  });
+
+  test("shows an error when reset fails", async ({ page }) => {
+    await page.addInitScript((phase) => {
+      window.__playwrightOverrides__ ??= {};
+      window.__playwrightOverrides__.__signup__ ??= {};
+      window.__playwrightOverrides__.__signup__.__initialState__ = phase;
+      window.__playwrightOverrides__.__workspaces__ ??= {};
+      window.__playwrightOverrides__.__workspaces__.__forceError__ = true;
+    }, UserSignupPhase.READY);
+
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "User menu" }).click();
+    await page.getByRole("menuitem", { name: "Reset Workspaces" }).click();
+
+    const modal = page.getByRole("dialog", { name: "Reset workspaces" });
+
+    // Click the primary button.
+    await modal
+      .getByRole("button", { name: "I understand and I want to reset" })
+      .click();
+
+    // Confirm the operation
+    await modal.getByRole("button", { name: "Reset my workspaces" }).click();
+
+    // Check that the alert shows.
+    await expect(
+      modal.getByRole("heading", {
+        level: 4,
+        name: "Danger alert: Unable to reset your workspaces",
+      }),
+    ).toBeVisible();
+    await expect(
+      modal.getByRole("button", { name: "Copy technical details" }),
+    ).toBeVisible();
+  });
 });
