@@ -44,14 +44,12 @@ const mockKeycloakInstance = {
     email: "jane@example.com",
     preferred_username: "janedoe",
   },
-  refreshTokenParsed: undefined as { exp: number } | undefined,
 };
 
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   server.resetHandlers();
   vi.clearAllMocks();
-  mockKeycloakInstance.refreshTokenParsed = undefined;
 
   // Clean up cookies between tests.
   document.cookie.split(";").forEach((c) => {
@@ -262,11 +260,7 @@ describe("initializeKeycloak", () => {
       expect(document.cookie).toContain(`${SESSION_HINT_COOKIE_NAME}=true`);
     });
 
-    it("derives maxAge from refreshTokenParsed.exp", async () => {
-      const futureExp = Math.floor(Date.now() / 1000) + 7200;
-      mockKeycloakInstance.refreshTokenParsed = { exp: futureExp };
-
-      // Spy on document.cookie to capture the Max-Age value.
+    it("sets the hint cookie with a one-year Max-Age", async () => {
       const cookieSpy = vi.spyOn(document, "cookie", "set");
       await initializeKeycloak(keycloak);
 
@@ -274,46 +268,25 @@ describe("initializeKeycloak", () => {
         call[0].includes(SESSION_HINT_COOKIE_NAME),
       );
       expect(hintCall).toBeDefined();
-
-      // The max-age should be close to 7200 seconds, give or take a
-      // second for test execution time.
-      const match = hintCall![0].match(/Max-Age=(\d+)/);
-      expect(match).not.toBeNull();
-      const maxAge = Number(match![1]);
-      expect(maxAge).toBeGreaterThanOrEqual(7198);
-      expect(maxAge).toBeLessThanOrEqual(7200);
+      expect(hintCall![0]).toContain("Max-Age=31536000");
 
       cookieSpy.mockRestore();
     });
 
-    it("falls back to 86400 seconds when refreshTokenParsed is missing", async () => {
-      mockKeycloakInstance.refreshTokenParsed = undefined;
+    it("does not overwrite the cookie if it already exists", async () => {
+      // Simulate a returning user whose cookie was previously refined
+      // to a trial-end expiration by the UserProvider.
+      document.cookie = `${SESSION_HINT_COOKIE_NAME}=true; Max-Age=3600; Path=/; SameSite=Lax`;
 
       const cookieSpy = vi.spyOn(document, "cookie", "set");
       await initializeKeycloak(keycloak);
 
-      const hintCall = cookieSpy.mock.calls.find((call) =>
+      // initializeKeycloak should not have written the hint cookie
+      // at all, preserving the existing expiration.
+      const hintCalls = cookieSpy.mock.calls.filter((call) =>
         call[0].includes(SESSION_HINT_COOKIE_NAME),
       );
-      expect(hintCall).toBeDefined();
-      expect(hintCall![0]).toContain("Max-Age=86400");
-
-      cookieSpy.mockRestore();
-    });
-
-    it("clamps maxAge to 60 seconds when exp is near or past current time", async () => {
-      // Simulate a refresh token that expired 10 seconds ago.
-      const pastExp = Math.floor(Date.now() / 1000) - 10;
-      mockKeycloakInstance.refreshTokenParsed = { exp: pastExp };
-
-      const cookieSpy = vi.spyOn(document, "cookie", "set");
-      await initializeKeycloak(keycloak);
-
-      const hintCall = cookieSpy.mock.calls.find((call) =>
-        call[0].includes(SESSION_HINT_COOKIE_NAME),
-      );
-      expect(hintCall).toBeDefined();
-      expect(hintCall![0]).toContain("Max-Age=60");
+      expect(hintCalls).toHaveLength(0);
 
       cookieSpy.mockRestore();
     });

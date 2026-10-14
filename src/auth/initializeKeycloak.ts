@@ -3,7 +3,7 @@ import Keycloak from "keycloak-js";
 import { setTokenGetter } from "../api/authFetch";
 import { type AppConfig, Environment } from "../config/config";
 import type { AuthConfigResponse, KeycloakClientConfig } from "../types";
-import { deleteCookie, setCookie } from "../utils/cookie-utils";
+import { deleteCookie, getCookie, setCookie } from "../utils/cookie-utils";
 import type { AuthenticatedContextValue } from "./AuthenticatedContext";
 
 export const SESSION_HINT_COOKIE_NAME = "rh_sd_session_hint";
@@ -137,14 +137,24 @@ async function initializeKeycloak(
 
   // Set up a cookie hint so that we know, on the next page visit, that the
   // user was authenticated and so that we can perform the whole SSO flow
-  // directly, without sending the user to the landing page. The maxAge is
-  // clamped to a minimum of 60 seconds so that clock skew between the auth
-  // server and the client cannot cause the cookie to expire immediately.
-  const sessionExp = keycloak.refreshTokenParsed?.exp;
-  const maxAge = sessionExp
-    ? Math.max(sessionExp - Math.floor(Date.now() / 1000), 60)
-    : 86400;
-  setCookie(SESSION_HINT_COOKIE_NAME, "true", maxAge);
+  // directly, without sending the user to the landing page.
+  //
+  // We set the cookie to expire in a year, so that the user does not see the
+  // landing page again for a while. The expectation is that once the user is
+  // signed up, we will update the cookie's expiration and set it to the
+  // user's trial expiration date.
+  //
+  // The reason for that is that they will nonetheless will have to go back
+  // and trigger another signup then, and until that happens their user will
+  // not be in a "READY" state anyway.
+  //
+  // Also, we make sure not to overwrite the cookie here if it already exists,
+  // to preserve the expiration date that was set in the past. The user
+  // signup's end date might or might not override it later, but in any case
+  // we will not blindly overwrite it here.
+  if (getCookie(SESSION_HINT_COOKIE_NAME) !== "true") {
+    setCookie(SESSION_HINT_COOKIE_NAME, "true", 31_536_000);
+  }
 
   // Use Keycloak's token utilities as the "token getter" for the
   // authenticated fetch calls.
