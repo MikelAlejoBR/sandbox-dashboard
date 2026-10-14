@@ -15,8 +15,8 @@ import { CommentAltIcon } from "@patternfly/react-icons";
 import ExternalLinkAltIcon from "@patternfly/react-icons/dist/esm/icons/external-link-alt-icon";
 import OutlinedQuestionCircleIcon from "@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon";
 
-import SalesImage from "../../assets/images/banner/sales.svg";
-import BannerImage from "../../assets/images/banner/sandbox-banner-image.svg";
+import AutomationIllustration from "../../assets/images/banner/rh-automation-general-illustration.svg";
+import WorkFromHomeIllustration from "../../assets/images/banner/rh-work-from-home-illustration.svg";
 import { useUserContext } from "../../hooks/UserContext";
 import { UserSignupPhase } from "../../hooks/userSignupPhase";
 import { calculateDaysBetweenDates } from "../../utils/common";
@@ -68,9 +68,9 @@ export function CatalogBanner() {
         <Flex className="banner-body-content-wrapper">
           <FlexItem className="pf-v6-u-display-block-on-md">
             <img
-              src={BannerImage}
-              alt="Red Hat Trial"
-              style={{ minWidth: "200px", height: "auto", display: "block" }}
+              src={AutomationIllustration}
+              alt=""
+              className="banner-body__image"
             />
           </FlexItem>
           <FlexItem>
@@ -163,14 +163,9 @@ export function CatalogBanner() {
           </FlexItem>
           <FlexItem>
             <img
-              src={SalesImage}
-              alt="Contact sales"
-              style={{
-                minWidth: "200px",
-                height: "auto",
-                display: "block",
-                transform: "scaleX(-1)",
-              }}
+              src={WorkFromHomeIllustration}
+              alt=""
+              className="banner-body__image banner-body__image-mirror"
             />
           </FlexItem>
         </Flex>

@@ -41,8 +41,11 @@ type CatalogCardProps = {
    * the product's page.
    */
   primaryButtonLabel: ButtonLabel;
-  /** Shows or hides the green corner on the top left part of the card. */
-  isGreenCornerVisible: boolean;
+  /**
+   * Shows or hides the hint in the card that hints that the product has been
+   * tried.
+   */
+  isTriedProductHintVisible: boolean;
   /** Controls whether the primary button is disabled. */
   isPrimaryButtonDisabled: boolean;
   /** Controls whether the spinner is visible in the primary button. */
@@ -63,26 +66,20 @@ type CatalogCardProps = {
 function DescriptionIcon({ type }: { type: BulletPointIconType | undefined }) {
   if (type === BulletPointIconType.WARNING) {
     return (
-      <InfoCircleIcon
-        color="var(--pf-t--global--color--nonstatus--teal--default)"
-        style={{ minWidth: "16px", width: "16px", marginTop: "2px" }}
-      />
+      <InfoCircleIcon className="catalog-card__description-item-icon catalog-card__description-item-icon-info" />
     );
   }
   return (
-    <CheckCircleIcon
-      color="var(--pf-t--global--color--nonstatus--purple--default)"
-      style={{ minWidth: "16px", width: "16px", marginTop: "2px" }}
-    />
+    <CheckCircleIcon className="catalog-card__description-item-icon catalog-card__description-item-icon-default" />
   );
 }
 
 /**
- * Renders a green corner on the card to mark it as "tried".
+ * Renders a hint on the product card to mark it as "tried".
  * @param param0 whether the mark should be visible or not.
  * @returns the component.
  */
-function GreenCorner({ isVisible }: { isVisible: boolean }) {
+function TriedProductHint({ isVisible }: { isVisible: boolean }) {
   if (!isVisible) {
     return null;
   }
@@ -91,28 +88,9 @@ function GreenCorner({ isVisible }: { isVisible: boolean }) {
       <div
         role="status"
         aria-label="Product tried"
-        style={{
-          width: "35px",
-          height: "35px",
-          backgroundColor: "#73C5C5",
-          clipPath: "polygon(0 0, 100% 0, 0 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          position: "absolute",
-          top: 0,
-          left: 0,
-        }}
+        className="catalog-card__tried-product-hint"
       >
-        <CheckIcon
-          style={{
-            color: "#fff",
-            fontSize: "12px",
-            position: "relative",
-            top: "-6px",
-            left: "-6px",
-          }}
-        />
+        <CheckIcon className="catalog-card__tried-product-hint-icon" />
       </div>
     </Tooltip>
   );
@@ -122,7 +100,7 @@ export function CatalogCard({
   product,
   statusLabel,
   primaryButtonLabel,
-  isGreenCornerVisible,
+  isTriedProductHintVisible,
   isPrimaryButtonDisabled,
   isPrimaryButtonSpinnerVisible,
   isPrimaryButtonExtIconVisible,
@@ -138,7 +116,7 @@ export function CatalogCard({
       className="sandbox-card"
     >
       <CardHeader className="sandbox-card-header">
-        <GreenCorner isVisible={isGreenCornerVisible} />
+        <TriedProductHint isVisible={isTriedProductHintVisible} />
         <Flex
           alignItems={{ default: "alignItemsCenter" }}
           gap={{ default: "gapSm" }}
@@ -147,13 +125,13 @@ export function CatalogCard({
             <img
               src={product.image}
               alt={product.title}
-              style={{ width: "48px", height: "48px" }}
+              className="catalog-card__product-image"
             />
           </FlexItem>
           <FlexItem>
             <Flex direction={{ default: "column" }} gap={{ default: "gapXs" }}>
               <FlexItem>
-                <Content component="h3" style={{ fontWeight: 700 }}>
+                <Content component="h3" className="catalog-card__product-title">
                   {product.title}
                 </Content>
               </FlexItem>
@@ -174,7 +152,7 @@ export function CatalogCard({
             key={index}
             gap={{ default: "gapSm" }}
             alignItems={{ default: "alignItemsFlexStart" }}
-            style={{ paddingBottom: "8px", fontSize: "14px" }}
+            className="catalog-card__description-item"
           >
             <FlexItem>
               <DescriptionIcon type={desc.iconType} /> {desc.bulletPoint}

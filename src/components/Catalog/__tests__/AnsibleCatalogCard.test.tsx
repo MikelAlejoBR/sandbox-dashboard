@@ -60,7 +60,7 @@ function renderCardTree(
           <AnsibleContext.Provider value={ansibleCtx}>
             <AnsibleCatalogCard
               product={aapProduct}
-              isGreenCornerVisible={false}
+              isTriedProductHintVisible={false}
               markProductAsTried={markProductAsTried}
             />
           </AnsibleContext.Provider>

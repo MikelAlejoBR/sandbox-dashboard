@@ -41,7 +41,7 @@ function renderCardTree(
           <OpenClawContext.Provider value={openClawCtx}>
             <OpenClawCatalogCard
               product={openclawProduct}
-              isGreenCornerVisible={false}
+              isTriedProductHintVisible={false}
               markProductAsTried={markProductAsTried}
             />
           </OpenClawContext.Provider>

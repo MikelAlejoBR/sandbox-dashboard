@@ -81,8 +81,11 @@ function getStatusLabel(status: AAPInstanceStatus): StatusLabel | undefined {
 type AnsibleCatalogCardProps = {
   /** The product to be shown in the card */
   product: Product;
-  /** Shows or hides the green corner on the top left part of the card. */
-  isGreenCornerVisible: boolean;
+  /**
+   * Shows or hides the hint in the card that hints that the product has been
+   * tried.
+   */
+  isTriedProductHintVisible: boolean;
   /**
    * Marks the product as "tried".
    * @param product The product to be marked.
@@ -92,7 +95,7 @@ type AnsibleCatalogCardProps = {
 
 export function AnsibleCatalogCard({
   product,
-  isGreenCornerVisible,
+  isTriedProductHintVisible,
   markProductAsTried,
 }: AnsibleCatalogCardProps) {
   const { deleteInstance, instanceStatus, provisionInstance, unidleInstance } =
@@ -291,7 +294,7 @@ export function AnsibleCatalogCard({
         product={product}
         statusLabel={statusLabel}
         primaryButtonLabel={buttonLabel}
-        isGreenCornerVisible={isGreenCornerVisible}
+        isTriedProductHintVisible={isTriedProductHintVisible}
         isPrimaryButtonDisabled={isPrimaryButtonDisabled}
         isPrimaryButtonSpinnerVisible={isPrimaryButtonSpinnerVisible}
         isPrimaryButtonExtIconVisible={false}

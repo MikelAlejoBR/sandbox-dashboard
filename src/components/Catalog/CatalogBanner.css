@@ -10,3 +10,13 @@
   gap: var(--pf-t--global--spacer--lg);
   justify-content: space-between;
 }
+
+.banner-body__image {
+  display: block;
+  height: auto;
+  min-width: 200px;
+}
+
+.banner-body__image-mirror {
+  transform: scaleX(-1);
+}
