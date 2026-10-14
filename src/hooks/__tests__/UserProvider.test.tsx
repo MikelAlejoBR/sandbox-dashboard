@@ -7,6 +7,7 @@ import {
   AuthenticatedContext,
   type AuthenticatedContextValue,
 } from "../../auth/AuthenticatedContext";
+import { SESSION_HINT_COOKIE_NAME } from "../../auth/initializeKeycloak";
 import { SUPPORT_EMAIL } from "../../const";
 import { readyUserFixture } from "../../mocks/fixtures";
 import { server } from "../../mocks/server";
@@ -76,6 +77,14 @@ beforeAll(() => {
 afterEach(() => {
   vi.useRealTimers();
   server.resetHandlers();
+
+  // Clean up cookies between tests.
+  document.cookie.split(";").forEach((c) => {
+    const name = c.split("=")[0].trim();
+    if (name) {
+      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
+    }
+  });
 });
 afterAll(() => server.close());
 
@@ -949,5 +958,138 @@ describe("useUserContext", () => {
     );
 
     consoleError.mockRestore();
+  });
+});
+
+describe("session hint cookie refinement", () => {
+  it("updates the hint cookie with the user's trial end date", async () => {
+    // Use UTC-based arithmetic to avoid local calendar-day shifts
+    // from DST transitions.
+    const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+    const thirtyDaysFromNow = new Date(Date.now() + thirtyDaysMs);
+
+    server.use(
+      http.get("*/api/v1/signup", () => {
+        return HttpResponse.json({
+          ...readyUserFixture,
+          endDate: thirtyDaysFromNow.toISOString(),
+        });
+      }),
+    );
+
+    const cookieSpy = vi.spyOn(document, "cookie", "set");
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("phase").textContent).toBe(
+        String(UserSignupPhase.READY),
+      );
+    });
+
+    // Find the hint cookie call that was made after the user data
+    // was fetched. The Max-Age should be close to 30 days in seconds.
+    const hintCalls = cookieSpy.mock.calls.filter((call) =>
+      call[0].includes(SESSION_HINT_COOKIE_NAME),
+    );
+    expect(hintCalls.length).toBeGreaterThanOrEqual(1);
+
+    const lastHintCall = hintCalls[hintCalls.length - 1];
+    const match = lastHintCall[0].match(/Max-Age=(\d+)/);
+    expect(match).not.toBeNull();
+
+    const maxAge = Number(match![1]);
+    const thirtyDaysInSeconds = 30 * 24 * 60 * 60;
+    // Allow a few seconds of tolerance for test execution time.
+    expect(maxAge).toBeGreaterThanOrEqual(thirtyDaysInSeconds - 5);
+    expect(maxAge).toBeLessThanOrEqual(thirtyDaysInSeconds);
+
+    cookieSpy.mockRestore();
+  });
+
+  it("does not update the hint cookie when the user has no end date", async () => {
+    server.use(
+      http.get("*/api/v1/signup", () => {
+        return HttpResponse.json({
+          ...readyUserFixture,
+          endDate: undefined,
+        });
+      }),
+    );
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("phase").textContent).toBe(
+        String(UserSignupPhase.READY),
+      );
+    });
+
+    // When the user has no end date, the provider should not set the
+    // hint cookie. Since we are not going through the real
+    // authentication flow, the cookie should not be present at all.
+    expect(document.cookie).not.toContain(SESSION_HINT_COOKIE_NAME);
+  });
+
+  it("sets a non-positive Max-Age when the trial end date is in the past", async () => {
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 5);
+
+    server.use(
+      http.get("*/api/v1/signup", () => {
+        return HttpResponse.json({
+          ...readyUserFixture,
+          endDate: pastDate.toISOString(),
+        });
+      }),
+    );
+
+    const cookieSpy = vi.spyOn(document, "cookie", "set");
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("phase").textContent).toBe(
+        String(UserSignupPhase.READY),
+      );
+    });
+
+    const hintCalls = cookieSpy.mock.calls.filter((call) =>
+      call[0].includes(SESSION_HINT_COOKIE_NAME),
+    );
+    expect(hintCalls.length).toBeGreaterThanOrEqual(1);
+
+    const lastHintCall = hintCalls[hintCalls.length - 1];
+    const match = lastHintCall[0].match(/Max-Age=(-?\d+)/);
+    expect(match).not.toBeNull();
+
+    // The Max-Age should be zero or negative, effectively expiring
+    // the cookie immediately.
+    const maxAge = Number(match![1]);
+    expect(maxAge).toBeLessThanOrEqual(0);
+
+    cookieSpy.mockRestore();
+  });
+
+  it("does not update the cookie when the end date is malformed", async () => {
+    server.use(
+      http.get("*/api/v1/signup", () => {
+        return HttpResponse.json({
+          ...readyUserFixture,
+          endDate: "not-a-valid-date",
+        });
+      }),
+    );
+
+    renderProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("phase").textContent).toBe(
+        String(UserSignupPhase.READY),
+      );
+    });
+
+    // A malformed endDate produces NaN, so the cookie should not be
+    // set. Since we are not going through the real authentication
+    // flow, the cookie should not be present at all.
+    expect(document.cookie).not.toContain(SESSION_HINT_COOKIE_NAME);
   });
 });
