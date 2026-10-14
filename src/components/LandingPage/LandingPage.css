@@ -43,6 +43,23 @@
   z-index: 1;
 }
 
+/*
+ * The landing page places pf-v6-theme-dark on a <div>, but PatternFly
+ * scopes its dark token overrides to :root, so tokens like
+ * --pf-t--global--text--color--regular stay at their light values
+ * here. The global.css rule ".pf-v6-theme-dark .rh-logo text" has
+ * specificity (0,2,1), so we scope through two parent classes to
+ * ensure these overrides win.
+ */
+.landing-page.pf-v6-theme-dark .landing-hero__logo path,
+.landing-page.pf-v6-theme-dark .landing-hero__logo text {
+  fill: var(--rh-color-text-primary-on-dark);
+}
+
+.landing-page.pf-v6-theme-dark .landing-hero__logo #hat {
+  fill: var(--rh-color-brand-red-on-dark);
+}
+
 .landing-hero__content {
   max-width: 821px;
   position: relative;
