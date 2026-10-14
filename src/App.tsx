@@ -9,6 +9,7 @@ import { SupportPage } from "./components/Support/SupportPage";
 import { AnalyticsProvider } from "./hooks/AnalyticsProvider";
 import { NotificationProvider } from "./hooks/NotificationProvider";
 import { PublicConfigurationProvider } from "./hooks/PublicConfigurationProvider";
+import { ThemeProvider } from "./hooks/ThemeProvider";
 import { UserProvider } from "./hooks/UserProvider";
 import type { BootstrapData } from "./types/main";
 
@@ -19,17 +20,19 @@ export function App({ bootstrapData }: { bootstrapData: BootstrapData }) {
         <PublicConfigurationProvider bootstrapData={bootstrapData}>
           <UserProvider bootstrapData={bootstrapData}>
             <AnalyticsProvider>
-              <BrowserRouter>
-                <Routes>
-                  <Route element={<ReadyGuard />}>
-                    <Route element={<Layout />}>
-                      <Route index element={<CatalogPage />} />
-                      <Route path="activities" element={<ActivitiesPage />} />
-                      <Route path="support" element={<SupportPage />} />
+              <ThemeProvider>
+                <BrowserRouter>
+                  <Routes>
+                    <Route element={<ReadyGuard />}>
+                      <Route element={<Layout />}>
+                        <Route index element={<CatalogPage />} />
+                        <Route path="activities" element={<ActivitiesPage />} />
+                        <Route path="support" element={<SupportPage />} />
+                      </Route>
                     </Route>
-                  </Route>
-                </Routes>
-              </BrowserRouter>
+                  </Routes>
+                </BrowserRouter>
+              </ThemeProvider>
             </AnalyticsProvider>
           </UserProvider>
         </PublicConfigurationProvider>

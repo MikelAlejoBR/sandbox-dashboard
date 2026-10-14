@@ -5,6 +5,19 @@
   z-index: 9999 !important;
 }
 
+.pf-v6-theme-dark .rh-logo #hat {
+  fill: var(--rh-color-brand-red);
+}
+
+.pf-v6-theme-dark .rh-logo #band {
+  fill: var(--pf-t--color--black);
+}
+
+.pf-v6-theme-dark .rh-logo path,
+.pf-v6-theme-dark .rh-logo text {
+  fill: var(--pf-t--global--text--color--regular);
+}
+
 .rh-hat-tip #hat-group {
   transition: transform 0.3s ease;
   transform-origin: 95px 151px;

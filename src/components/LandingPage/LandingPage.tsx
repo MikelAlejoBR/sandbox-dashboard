@@ -5,7 +5,7 @@ import { AccordionHeader } from "@rhds/elements/react/rh-accordion/rh-accordion-
 import { AccordionPanel } from "@rhds/elements/react/rh-accordion/rh-accordion-panel.js";
 import { BackToTop } from "@rhds/elements/react/rh-back-to-top/rh-back-to-top.js";
 import { Icon } from "@rhds/elements/react/rh-icon/rh-icon.js";
-import { Fragment, useEffect, useMemo } from "react";
+import { Fragment, useMemo } from "react";
 
 import RepoDetective from "../../assets/images/landing/Repo_Detective.webp";
 import RepoRocket from "../../assets/images/landing/Repo_Rocket.webp";
@@ -32,7 +32,7 @@ function HeroSection() {
   return (
     <section id="top" className="landing-hero">
       <RedHatLogo
-        className="landing-hero__logo rh-hat-tip"
+        className="landing-hero__logo rh-logo rh-hat-tip"
         aria-label="Red Hat Developer Sandbox"
       />
       <div className="landing-hero__content">
@@ -227,20 +227,10 @@ function FinalCTASection() {
   );
 }
 
-/** Landing page shown at /welcome before the user enters the app. */
+/** Landing page before the user enters the app. */
 export function LandingPage() {
-  // The effect adds the PatternFly dark theme class to the root element,
-  // because we want to make any PatternFly component we use match the RHDS'
-  // dark theme of the landing page.
-  useEffect(() => {
-    document.documentElement.classList.add("pf-v6-theme-dark");
-    return () => {
-      document.documentElement.classList.remove("pf-v6-theme-dark");
-    };
-  }, []);
-
   return (
-    <div className="landing-page">
+    <div className="landing-page pf-v6-theme-dark">
       <HeroSection />
       <HowItWorksSection />
       <FAQSection />

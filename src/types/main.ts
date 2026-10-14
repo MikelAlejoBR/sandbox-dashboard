@@ -24,3 +24,39 @@ export type BootstrapData = {
    */
   signupData?: Promise<User | undefined>;
 };
+
+/**
+ * Represents the current PatternFly theme preferences.
+ */
+export type ThemePreferences = {
+  themeMode: ThemeMode;
+  colorScheme: ColorScheme;
+  contrastMode: ContrastMode;
+};
+
+/**
+ * Represents the modes of the Patternfly theme.
+ */
+export enum ThemeMode {
+  DEFAULT = "default",
+  PROJECT_FELT = "projectFelt",
+}
+
+/**
+ * Represents the color scheme of the PatternFly theme.
+ */
+export enum ColorScheme {
+  SYSTEM = "system",
+  LIGHT = "light",
+  DARK = "dark",
+}
+
+/**
+ * Represents the contrast mode for the PatternFly theme.
+ */
+export enum ContrastMode {
+  SYSTEM = "system",
+  DEFAULT = "default",
+  HIGH_CONTRAST = "highContrast",
+  GLASS = "glass",
+}

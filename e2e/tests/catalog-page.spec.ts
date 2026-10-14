@@ -12,19 +12,6 @@ test.describe("Catalog page", () => {
       }, UserSignupPhase.READY);
     });
 
-    test("displays Red Hat trial and contact sales images", async ({
-      page,
-    }) => {
-      await page.goto("/");
-
-      await expect(
-        page.getByRole("img", { name: "Red Hat Trial" }),
-      ).toBeVisible();
-      await expect(
-        page.getByRole("img", { name: "Contact sales" }),
-      ).toBeVisible();
-    });
-
     test("displays a welcome message", async ({ page }) => {
       await page.goto("/");
 

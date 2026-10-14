@@ -79,8 +79,11 @@ function getStatusLabel(status: OpenClawStatus): StatusLabel | undefined {
 type OpenClawCatalogCardProps = {
   /** The product to be shown in the card */
   product: Product;
-  /** Shows or hides the green corner on the top left part of the card. */
-  isGreenCornerVisible: boolean;
+  /**
+   * Shows or hides the hint in the card that hints that the product has been
+   * tried.
+   */
+  isTriedProductHintVisible: boolean;
   /**
    * Marks the product as "tried".
    * @param product The product to be marked.
@@ -90,7 +93,7 @@ type OpenClawCatalogCardProps = {
 
 export function OpenClawCatalogCard({
   product,
-  isGreenCornerVisible,
+  isTriedProductHintVisible,
   markProductAsTried,
 }: OpenClawCatalogCardProps) {
   const { trackAnalytics } = useAnalyticsContext();
@@ -269,7 +272,7 @@ export function OpenClawCatalogCard({
         product={product}
         statusLabel={statusLabel}
         primaryButtonLabel={buttonLabel}
-        isGreenCornerVisible={isGreenCornerVisible}
+        isTriedProductHintVisible={isTriedProductHintVisible}
         isPrimaryButtonDisabled={isPrimaryButtonDisabled}
         isPrimaryButtonSpinnerVisible={isPrimaryButtonSpinnerVisible}
         isPrimaryButtonExtIconVisible={isPrimaryButtonExtIconVisible}

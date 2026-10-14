@@ -9,6 +9,7 @@ import {
   type AuthenticatedContextValue,
 } from "../../auth/AuthenticatedContext";
 import { NotificationProvider } from "../../hooks/NotificationProvider";
+import { ThemeProvider } from "../../hooks/ThemeProvider";
 import { UserContext, type UserContextType } from "../../hooks/UserContext";
 import { UserSignupPhase } from "../../hooks/userSignupPhase";
 import { readyUserFixture } from "../../mocks/fixtures";
@@ -104,18 +105,20 @@ function renderLayout(
     <NotificationProvider>
       <AuthenticatedContext.Provider value={authValue}>
         <UserContext.Provider value={makeSandboxContext(sandboxOverrides)}>
-          <MemoryRouter initialEntries={[route]}>
-            <Routes>
-              <Route element={<Layout />}>
-                <Route index element={<div>Catalog Content</div>} />
-                <Route
-                  path="activities"
-                  element={<div>Activities Content</div>}
-                />
-                <Route path="support" element={<div>Support Content</div>} />
-              </Route>
-            </Routes>
-          </MemoryRouter>
+          <ThemeProvider>
+            <MemoryRouter initialEntries={[route]}>
+              <Routes>
+                <Route element={<Layout />}>
+                  <Route index element={<div>Catalog Content</div>} />
+                  <Route
+                    path="activities"
+                    element={<div>Activities Content</div>}
+                  />
+                  <Route path="support" element={<div>Support Content</div>} />
+                </Route>
+              </Routes>
+            </MemoryRouter>
+          </ThemeProvider>
         </UserContext.Provider>
       </AuthenticatedContext.Provider>
     </NotificationProvider>,
@@ -126,6 +129,13 @@ describe("Layout", () => {
   it("renders the masthead with brand", () => {
     renderLayout();
     expect(screen.getByText("Developer Sandbox")).toBeInTheDocument();
+  });
+
+  it("renders the theme selector toggle", () => {
+    renderLayout();
+    expect(
+      screen.getByRole("button", { name: "Theme selection" }),
+    ).toBeInTheDocument();
   });
 
   it("renders navigation links", () => {

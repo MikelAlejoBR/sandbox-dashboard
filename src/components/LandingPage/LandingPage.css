@@ -43,19 +43,6 @@
   z-index: 1;
 }
 
-.landing-hero__logo path,
-.landing-hero__logo text {
-  fill: #fff;
-}
-
-.landing-hero__logo #hat {
-  fill: var(--rh-color-brand-red);
-}
-
-.landing-hero__logo #band {
-  fill: #000;
-}
-
 .landing-hero__content {
   max-width: 821px;
   position: relative;

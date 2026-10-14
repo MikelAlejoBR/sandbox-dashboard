@@ -31,6 +31,7 @@ import { UserSignupPhase } from "../../hooks/userSignupPhase";
 import logger from "../../utils/logger";
 import { WorkspaceResetModal } from "../Modals";
 import { PageFooter } from "./PageFooter";
+import { ThemeSelector } from "./ThemeSelector";
 
 export function Layout() {
   const { logout } = useAuthenticatedUser();
@@ -108,6 +109,9 @@ export function Layout() {
               </ToolbarItem>
             </ToolbarGroup>
             <ToolbarGroup align={{ default: "alignEnd" }}>
+              <ToolbarItem>
+                <ThemeSelector />
+              </ToolbarItem>
               <ToolbarItem>
                 <Dropdown
                   isOpen={isDropdownOpen}

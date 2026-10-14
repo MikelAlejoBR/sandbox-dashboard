@@ -114,7 +114,7 @@ export function CatalogGrid() {
                 <AnsibleProvider>
                   <AnsibleCatalogCard
                     product={product}
-                    isGreenCornerVisible={isProductTried(product)}
+                    isTriedProductHintVisible={isProductTried(product)}
                     markProductAsTried={markProductAsTried}
                   />
                 </AnsibleProvider>
@@ -126,7 +126,7 @@ export function CatalogGrid() {
                 <OpenClawProvider>
                   <OpenClawCatalogCard
                     product={product}
-                    isGreenCornerVisible={isProductTried(product)}
+                    isTriedProductHintVisible={isProductTried(product)}
                     markProductAsTried={markProductAsTried}
                   />
                 </OpenClawProvider>
@@ -142,7 +142,7 @@ export function CatalogGrid() {
                       ? ButtonLabel.PROVISIONING
                       : ButtonLabel.TRY_IT
                   }
-                  isGreenCornerVisible={isProductTried(product)}
+                  isTriedProductHintVisible={isProductTried(product)}
                   isPrimaryButtonDisabled={!isRhdhButtonEnabled}
                   isPrimaryButtonSpinnerVisible={isRhdhProvisioning}
                   isPrimaryButtonExtIconVisible
@@ -157,7 +157,7 @@ export function CatalogGrid() {
                 <CatalogCard
                   product={product}
                   primaryButtonLabel={ButtonLabel.TRY_IT}
-                  isGreenCornerVisible={isProductTried(product)}
+                  isTriedProductHintVisible={isProductTried(product)}
                   isPrimaryButtonDisabled={false}
                   isPrimaryButtonSpinnerVisible={false}
                   isPrimaryButtonExtIconVisible
