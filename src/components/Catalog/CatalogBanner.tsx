@@ -8,62 +8,38 @@ import {
   ContentVariants,
   Flex,
   FlexItem,
-  Popover,
-  Skeleton,
 } from "@patternfly/react-core";
 import { CommentAltIcon } from "@patternfly/react-icons";
 import ExternalLinkAltIcon from "@patternfly/react-icons/dist/esm/icons/external-link-alt-icon";
-import OutlinedQuestionCircleIcon from "@patternfly/react-icons/dist/esm/icons/outlined-question-circle-icon";
 
 import AutomationIllustration from "../../assets/images/banner/rh-automation-general-illustration.svg";
 import WorkFromHomeIllustration from "../../assets/images/banner/rh-work-from-home-illustration.svg";
+import { useAuth } from "../../auth/AuthenticatedContext";
 import { useUserContext } from "../../hooks/UserContext";
-import { UserSignupPhase } from "../../hooks/userSignupPhase";
 import { calculateDaysBetweenDates } from "../../utils/common";
+import { type BannerContent, resolveBannerContent } from "./bannerContent";
+import { CatalogBannerSkeleton } from "./CatalogBannerSkeleton";
+import { CatalogBannerTrialExpirationPopover } from "./CatalogBannerTrialExpirationPopover";
 
 export function CatalogBanner() {
+  const auth = useAuth();
   const { user, userSignupPhase } = useUserContext();
 
+  // Calculate the number of days that are left in the trial.
   const daysLeft = user?.endDate
     ? calculateDaysBetweenDates(new Date(), new Date(user?.endDate))
     : undefined;
 
-  const popoverBody = (
-    <div>
-      <Content component={ContentVariants.p}>
-        Once this trial expires, you can start a new one immediately. Your work
-        from this trial will be deleted. To save your work, follow the
-        instructions in our documentation.
-      </Content>
-      <a
-        href="https://developers.redhat.com/learn/openshift/move-your-developer-sandbox-objects-another-cluster"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        View documentation <ExternalLinkAltIcon />
-      </a>
-    </div>
+  // Resolve which content we are going to show in the banner.
+  const bannerContent: BannerContent | undefined = resolveBannerContent(
+    auth.authenticated,
+    userSignupPhase,
+    user,
+    daysLeft,
   );
 
-  const renderSubtitle = () => {
-    switch (userSignupPhase) {
-      case UserSignupPhase.BLOCKED:
-        return "Your account is not ready to use the Developer Sandbox.";
-      case UserSignupPhase.PENDING_PHONE_VERIFICATION:
-        return 'Click on "Try it" to initiate your free, no commitment 30-day trial.';
-      case UserSignupPhase.PENDING_MANUAL_APPROVAL:
-        return "Please wait for your trial to be approved.";
-    }
-
-    if (user?.endDate && daysLeft !== undefined) {
-      return `Your free trial expires in ${daysLeft} ${daysLeft === 1 ? "day" : "days"}`;
-    }
-
-    return "";
-  };
-
   return (
-    <Card isPlain isFullHeight={false} style={{ borderRadius: 0 }}>
+    <Card isPlain isFullHeight={false}>
       <CardBody className="banner-body">
         <Flex className="banner-body-content-wrapper">
           <FlexItem className="pf-v6-u-display-block-on-md">
@@ -74,92 +50,57 @@ export function CatalogBanner() {
             />
           </FlexItem>
           <FlexItem>
-            {userSignupPhase === UserSignupPhase.BLOCKED ? (
-              <div>
-                <Content component={ContentVariants.h1}>
-                  Try Red Hat products
-                </Content>
-                <Content component={ContentVariants.p}>
-                  {renderSubtitle()}
-                </Content>
-              </div>
-            ) : userSignupPhase === UserSignupPhase.INITIAL_FETCH ? (
-              <div>
-                <Skeleton
-                  width="500px"
-                  height="25px"
-                  style={{ marginBottom: "10px" }}
-                  data-testid="banner-skeleton"
-                />
-                <Skeleton
-                  width="510px"
-                  height="25px"
-                  style={{ marginBottom: "15px" }}
-                />
-                <Skeleton width="300px" height="25px" />
-              </div>
-            ) : user ? (
-              <div>
-                <Content component="h1">
-                  Welcome, {user?.givenName || user?.username}
-                </Content>
+            <Flex direction={{ default: "column" }}>
+              <FlexItem>
+                {bannerContent ? (
+                  <>
+                    <Content component={ContentVariants.h1}>
+                      {bannerContent.title}
+                    </Content>
+                    <Flex
+                      alignItems={{ default: "alignItemsCenter" }}
+                      gap={{ default: "gapSm" }}
+                    >
+                      <FlexItem>
+                        <Content component={ContentVariants.p}>
+                          {bannerContent.subtitle}
+                        </Content>
+                      </FlexItem>
+                      {user?.endDate && (
+                        <FlexItem>
+                          <CatalogBannerTrialExpirationPopover />
+                        </FlexItem>
+                      )}
+                    </Flex>
+                  </>
+                ) : (
+                  <CatalogBannerSkeleton />
+                )}
+              </FlexItem>
+            </Flex>
+          </FlexItem>
+          <FlexItem align={{ default: "alignRight" }}>
+            <Content
+              component={ContentVariants.a}
+              href="https://redhat.com/en/contact"
+              target="_blank"
+            >
+              <Button variant="secondary" style={{ padding: "10px 15px" }}>
                 <Flex
+                  display={{ default: "inlineFlex" }}
                   alignItems={{ default: "alignItemsCenter" }}
                   gap={{ default: "gapSm" }}
                 >
                   <FlexItem>
-                    <Content component={ContentVariants.p}>
-                      {renderSubtitle()}
-                    </Content>
+                    <CommentAltIcon />
                   </FlexItem>
-                  {user?.endDate && (
-                    <FlexItem>
-                      <Popover
-                        headerContent="Trial expiration"
-                        bodyContent={popoverBody}
-                        position="bottom"
-                      >
-                        <Button
-                          variant="plain"
-                          aria-label="Show trial information"
-                          style={{ padding: 0 }}
-                        >
-                          <OutlinedQuestionCircleIcon />
-                        </Button>
-                      </Popover>
-                    </FlexItem>
-                  )}
+                  <FlexItem>Contact sales</FlexItem>
+                  <FlexItem>
+                    <ExternalLinkAltIcon />
+                  </FlexItem>
                 </Flex>
-              </div>
-            ) : (
-              <div>
-                <Content component="h1">Try Red Hat products</Content>
-                <Content component={ContentVariants.p}>
-                  Explore, experiment, and see what&apos;s possible
-                </Content>
-                <Content component={ContentVariants.p}>
-                  Click on &quot;Try it&quot; to initiate your free, no
-                  commitment 30-day trial.
-                </Content>
-              </div>
-            )}
-          </FlexItem>
-          <FlexItem align={{ default: "alignRight" }}>
-            <a href="https://redhat.com/en/contact" target="_blank">
-              <Button variant="secondary" style={{ padding: "10px 15px" }}>
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "10px",
-                  }}
-                >
-                  <CommentAltIcon />
-                  Contact sales
-                  <ExternalLinkAltIcon />
-                </span>
               </Button>
-            </a>
+            </Content>
           </FlexItem>
           <FlexItem>
             <img

@@ -1,10 +1,19 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import {
+  AuthenticatedContext,
+  type AuthenticatedContextValue,
+} from "../../../auth/AuthenticatedContext";
 import { AnalyticsContext } from "../../../hooks/AnalyticsContext";
 import { NotificationProvider } from "../../../hooks/NotificationProvider";
 import type { OpenClawContextType } from "../../../hooks/OpenClawContext";
 import { OpenClawContext } from "../../../hooks/OpenClawContext";
+import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
+import {
+  SignupActionContext,
+  type SignupActionContextType,
+} from "../../../hooks/signupAction/SignupActionContext";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
 import { UserSignupPhase } from "../../../hooks/userSignupPhase";
@@ -16,6 +25,27 @@ import { products } from "../productData";
 import { makeOpenClawContext } from "./openClawTestHelpers";
 
 const openclawProduct = products.find((p) => p.type === ProductType.OPENCLAW)!;
+
+const authenticatedUser: AuthenticatedContextValue = {
+  authenticated: true,
+  email: "johndoe@redhat.com",
+  familyName: "Doe",
+  givenName: "John",
+  logout: vi.fn(),
+  token: "mock-token",
+  username: "johndoe",
+};
+
+function makeSignupActionContext(
+  overrides: Partial<SignupActionContextType> = {},
+): SignupActionContextType {
+  return {
+    isSignupInProgress: false,
+    signupAndRun: vi.fn(),
+    registerAction: vi.fn(),
+    ...overrides,
+  };
+}
 
 function makeSandboxContext(
   overrides: Partial<UserContextType> = {},
@@ -32,22 +62,31 @@ function makeSandboxContext(
 function renderCardTree(
   sandboxCtx: UserContextType,
   openClawCtx: OpenClawContextType,
+  signupActionCtx: SignupActionContextType,
   markProductAsTried: (product: Product) => void,
 ) {
   return (
-    <NotificationProvider>
-      <UserContext.Provider value={sandboxCtx}>
-        <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
-          <OpenClawContext.Provider value={openClawCtx}>
-            <OpenClawCatalogCard
-              product={openclawProduct}
-              isTriedProductHintVisible={false}
-              markProductAsTried={markProductAsTried}
-            />
-          </OpenClawContext.Provider>
-        </AnalyticsContext.Provider>
-      </UserContext.Provider>
-    </NotificationProvider>
+    <AuthenticatedContext.Provider value={authenticatedUser}>
+      <NotificationProvider>
+        <UserContext.Provider value={sandboxCtx}>
+          <PhoneVerificationContext.Provider
+            value={{ openPhoneVerificationModal: vi.fn() }}
+          >
+            <SignupActionContext.Provider value={signupActionCtx}>
+              <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
+                <OpenClawContext.Provider value={openClawCtx}>
+                  <OpenClawCatalogCard
+                    product={openclawProduct}
+                    isTriedProductHintVisible={false}
+                    markProductAsTried={markProductAsTried}
+                  />
+                </OpenClawContext.Provider>
+              </AnalyticsContext.Provider>
+            </SignupActionContext.Provider>
+          </PhoneVerificationContext.Provider>
+        </UserContext.Provider>
+      </NotificationProvider>
+    </AuthenticatedContext.Provider>
   );
 }
 
@@ -55,13 +94,15 @@ function renderCard(
   openClawOverrides: Partial<OpenClawContextType> = {},
   markProductAsTried?: (product: Product) => void,
   sandboxOverrides: Partial<UserContextType> = {},
+  signupActionOverrides: Partial<SignupActionContextType> = {},
 ) {
   const sandboxCtx = makeSandboxContext(sandboxOverrides);
   const openClawCtx = makeOpenClawContext(openClawOverrides);
+  const signupActionCtx = makeSignupActionContext(signupActionOverrides);
   const defaultMarkTried = markProductAsTried ?? vi.fn();
 
   const view = render(
-    renderCardTree(sandboxCtx, openClawCtx, defaultMarkTried),
+    renderCardTree(sandboxCtx, openClawCtx, signupActionCtx, defaultMarkTried),
   );
 
   return {
@@ -74,8 +115,15 @@ function renderCard(
     ) => {
       view.rerender(
         renderCardTree(
-          makeSandboxContext({ ...sandboxOverrides, ...nextSandbox }),
-          makeOpenClawContext({ ...openClawOverrides, ...nextOpenClaw }),
+          makeSandboxContext({
+            ...sandboxOverrides,
+            ...nextSandbox,
+          }),
+          makeOpenClawContext({
+            ...openClawOverrides,
+            ...nextOpenClaw,
+          }),
+          signupActionCtx,
           defaultMarkTried,
         ),
       );
@@ -306,13 +354,13 @@ describe("OpenClawCatalogCard", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("enables primary button regardless of userSignupPhase", () => {
+  it("disables primary button during INITIAL_FETCH", () => {
     renderCard({ status: OpenClawStatus.READY }, undefined, {
       userSignupPhase: UserSignupPhase.INITIAL_FETCH,
     });
 
-    // The button should not be disabled by userSignupPhase anymore; only
-    // by the instance status (LOADING or DELETING).
-    expect(getPrimaryButton("Launch")).toBeEnabled();
+    // The spinner is shown, making the accessible name include
+    // "Loading...".
+    expect(getPrimaryButton(/Launch/)).toBeDisabled();
   });
 });

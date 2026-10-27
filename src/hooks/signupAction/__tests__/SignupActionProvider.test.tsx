@@ -1,0 +1,759 @@
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+
+import {
+  AuthenticatedContext,
+  type AuthenticatedContextValue,
+} from "../../../auth/AuthenticatedContext";
+import { ButtonLabel } from "../../../components/Catalog/catalogCardTypes";
+import { ProductType } from "../../../types/product";
+import { NotificationProvider } from "../../NotificationProvider";
+import { UserContext, type UserContextType } from "../../UserContext";
+import { UserSignupPhase } from "../../userSignupPhase";
+import { useSignupAction } from "../SignupActionContext";
+import {
+  AuthenticatedSignupActionProvider,
+  SignupActionProvider,
+  UnauthenticatedSignupActionProvider,
+} from "../SignupActionProvider";
+import { SIGNUP_WATCHER_INTERVAL_MS } from "../signupActionUtils";
+import { mockUserActivation } from "./userActivationTestHelpers";
+
+// ── Fixtures ──────────────────────────────────────────────
+
+const authenticatedAuth: AuthenticatedContextValue = {
+  authenticated: true,
+  email: "john@example.com",
+  familyName: "Doe",
+  givenName: "John",
+  logout: vi.fn(),
+  token: "mock-token",
+  username: "johndoe",
+};
+
+const unauthenticatedAuth: AuthenticatedContextValue = {
+  authenticated: false,
+  login: vi.fn(),
+};
+
+// ── Helpers ───────────────────────────────────────────────
+
+function makeUserContext(
+  overrides: Partial<UserContextType> = {},
+): UserContextType {
+  return {
+    refetchUserData: vi.fn().mockResolvedValue(undefined),
+    signupUser: vi.fn(),
+    user: undefined,
+    userSignupPhase: UserSignupPhase.NOT_STARTED,
+    ...overrides,
+  };
+}
+
+/**
+ * A component that consumes the signup action context and exposes it
+ * via test IDs and buttons.
+ */
+function ContextConsumer({
+  productType = ProductType.OPENSHIFT_CONSOLE,
+}: {
+  productType?: ProductType;
+}) {
+  const { isSignupInProgress, signupAndRun, registerAction } =
+    useSignupAction();
+
+  return (
+    <div>
+      <span data-testid="in-progress">{String(isSignupInProgress)}</span>
+      <button
+        data-testid="signup-and-run"
+        onClick={() => signupAndRun(productType)}
+      >
+        signupAndRun
+      </button>
+      <button
+        data-testid="register-action"
+        onClick={() =>
+          registerAction(productType, {
+            buttonLabel: ButtonLabel.TRY_IT,
+            canEnable: true,
+            onReady: () => {},
+          })
+        }
+      >
+        registerAction
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Renders the {@link AuthenticatedSignupActionProvider} wrapped in
+ * the required contexts.
+ *
+ * Returns a `setPhase` helper that rerenders the tree with a new
+ * user signup phase.
+ */
+function renderAuthenticated(
+  userCtxOverrides: Partial<UserContextType> = {},
+  children?: React.ReactNode,
+) {
+  const userCtx = makeUserContext(userCtxOverrides);
+
+  const ui = (ctx: UserContextType) => (
+    <NotificationProvider>
+      <AuthenticatedContext.Provider value={authenticatedAuth}>
+        <UserContext.Provider value={ctx}>
+          <AuthenticatedSignupActionProvider>
+            {children ?? <ContextConsumer />}
+          </AuthenticatedSignupActionProvider>
+        </UserContext.Provider>
+      </AuthenticatedContext.Provider>
+    </NotificationProvider>
+  );
+
+  const view = render(ui(userCtx));
+
+  return {
+    userCtx,
+    setPhase: (phase: UserSignupPhase) => {
+      const next = { ...userCtx, userSignupPhase: phase };
+      view.rerender(ui(next));
+    },
+    unmount: view.unmount,
+  };
+}
+
+// ── Setup / teardown ──────────────────────────────────────
+
+beforeEach(() => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  mockUserActivation(true);
+  sessionStorage.clear();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+});
+
+// ── UnauthenticatedSignupActionProvider ───────────────────
+
+describe("UnauthenticatedSignupActionProvider", () => {
+  it("saves the product type to sessionStorage and calls login", () => {
+    const login = vi.fn();
+
+    render(
+      <UnauthenticatedSignupActionProvider login={login}>
+        <ContextConsumer />
+      </UnauthenticatedSignupActionProvider>,
+    );
+
+    screen.getByTestId("signup-and-run").click();
+
+    expect(sessionStorage.getItem("pending-signup-intent-key")).toBe(
+      ProductType.OPENSHIFT_CONSOLE,
+    );
+    expect(login).toHaveBeenCalledTimes(1);
+  });
+
+  it("still calls login when sessionStorage.setItem throws", () => {
+    const login = vi.fn();
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+
+    render(
+      <UnauthenticatedSignupActionProvider login={login}>
+        <ContextConsumer />
+      </UnauthenticatedSignupActionProvider>,
+    );
+
+    screen.getByTestId("signup-and-run").click();
+
+    expect(login).toHaveBeenCalledTimes(1);
+  });
+
+  it("provides isSignupInProgress as false", () => {
+    render(
+      <UnauthenticatedSignupActionProvider login={vi.fn()}>
+        <ContextConsumer />
+      </UnauthenticatedSignupActionProvider>,
+    );
+
+    expect(screen.getByTestId("in-progress").textContent).toBe("false");
+  });
+
+  it("provides a no-op registerAction", () => {
+    render(
+      <UnauthenticatedSignupActionProvider login={vi.fn()}>
+        <ContextConsumer />
+      </UnauthenticatedSignupActionProvider>,
+    );
+
+    // Should not throw.
+    screen.getByTestId("register-action").click();
+  });
+});
+
+// ── SignupActionProvider (routing) ────────────────────────
+
+describe("SignupActionProvider", () => {
+  it("renders the unauthenticated provider when not authenticated", () => {
+    const login = vi.fn();
+
+    render(
+      <NotificationProvider>
+        <AuthenticatedContext.Provider
+          value={{ ...unauthenticatedAuth, login }}
+        >
+          <UserContext.Provider
+            value={makeUserContext({
+              userSignupPhase: UserSignupPhase.UNAUTHENTICATED,
+            })}
+          >
+            <SignupActionProvider>
+              <ContextConsumer />
+            </SignupActionProvider>
+          </UserContext.Provider>
+        </AuthenticatedContext.Provider>
+      </NotificationProvider>,
+    );
+
+    screen.getByTestId("signup-and-run").click();
+
+    expect(login).toHaveBeenCalledTimes(1);
+    expect(sessionStorage.getItem("pending-signup-intent-key")).toBe(
+      ProductType.OPENSHIFT_CONSOLE,
+    );
+  });
+});
+
+// ── AuthenticatedSignupActionProvider ─────────────────────
+
+describe("AuthenticatedSignupActionProvider", () => {
+  describe("signupAndRun", () => {
+    it("calls signupUser and sets isSignupInProgress to true", async () => {
+      const { userCtx } = renderAuthenticated();
+
+      await act(async () => {
+        screen.getByTestId("signup-and-run").click();
+      });
+
+      expect(userCtx.signupUser).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId("in-progress").textContent).toBe("true");
+    });
+  });
+
+  describe("fast path", () => {
+    it("executes the action when READY, canEnable and gesture are all met", async () => {
+      const onReady = vi.fn();
+      const productType = ProductType.OPENSHIFT_CONSOLE;
+
+      function FastPathConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register"
+              onClick={() =>
+                registerAction(productType, {
+                  buttonLabel: ButtonLabel.TRY_IT,
+                  canEnable: true,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(productType)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <FastPathConsumer />,
+      );
+
+      // Register the action, then trigger signupAndRun.
+      // fireEvent wraps in act() to flush state updates.
+      fireEvent.click(screen.getByTestId("register"));
+      fireEvent.click(screen.getByTestId("run"));
+
+      // Simulate signup completion. setPhase and advanceTimers are
+      // split so that effects from the rerender (which update
+      // userSignupPhaseRef) flush before the watcher tick fires.
+      // Keeping them together can race with shouldAdvanceTime.
+      await act(async () => {
+        setPhase(UserSignupPhase.READY);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps ticking when READY but canEnable is false", async () => {
+      const onReady = vi.fn();
+      const productType = ProductType.OPENSHIFT_CONSOLE;
+
+      function DelayedEnableConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register-disabled"
+              onClick={() =>
+                registerAction(productType, {
+                  buttonLabel: ButtonLabel.TRY_IT,
+                  canEnable: false,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="register-enabled"
+              onClick={() =>
+                registerAction(productType, {
+                  buttonLabel: ButtonLabel.TRY_IT,
+                  canEnable: true,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(productType)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <DelayedEnableConsumer />,
+      );
+
+      // Register with canEnable: false (simulating the NO-OP
+      // provider state for AAP/OpenClaw).
+      fireEvent.click(screen.getByTestId("register-disabled"));
+      fireEvent.click(screen.getByTestId("run"));
+
+      // Phase reaches READY but action is not enabled yet.
+      await act(async () => {
+        setPhase(UserSignupPhase.READY);
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).not.toHaveBeenCalled();
+
+      // Now the provider loads and re-registers with canEnable:
+      // true. The next watcher tick should execute the action.
+      fireEvent.click(screen.getByTestId("register-enabled"));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("slow path (modal)", () => {
+    it("opens the modal when the gesture expires before signup completes", async () => {
+      mockUserActivation(false);
+
+      renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      fireEvent.click(screen.getByTestId("signup-and-run"));
+
+      // The first tick sees !isActive and opens the modal.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(
+        screen.getByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).toBeInTheDocument();
+    });
+
+    it("opens the modal when gesture expires while READY but canEnable is false", async () => {
+      let isActive = true;
+      vi.spyOn(navigator, "userActivation", "get").mockImplementation(() => ({
+        isActive,
+        hasBeenActive: true,
+      }));
+
+      const onReady = vi.fn();
+      const productType = ProductType.OPENSHIFT_CONSOLE;
+
+      function SlowPathConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register"
+              onClick={() =>
+                registerAction(productType, {
+                  buttonLabel: ButtonLabel.TRY_IT,
+                  canEnable: false,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(productType)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <SlowPathConsumer />,
+      );
+
+      fireEvent.click(screen.getByTestId("register"));
+      fireEvent.click(screen.getByTestId("run"));
+
+      // Phase reaches READY but canEnable is false.
+      await act(async () => {
+        setPhase(UserSignupPhase.READY);
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).not.toHaveBeenCalled();
+      // Modal should not be open yet — gesture is still active.
+      expect(
+        screen.queryByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).not.toBeInTheDocument();
+
+      // Gesture expires.
+      isActive = false;
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      // Modal should open as the fallback.
+      expect(
+        screen.getByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).toBeInTheDocument();
+      expect(onReady).not.toHaveBeenCalled();
+    });
+
+    it("treats a missing User Activation API as the slow path", async () => {
+      mockUserActivation(undefined);
+
+      renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      fireEvent.click(screen.getByTestId("signup-and-run"));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(
+        screen.getByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("interrupt", () => {
+    it("closes the modal and resets progress on an interrupt phase", async () => {
+      mockUserActivation(false);
+
+      const { setPhase } = renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      fireEvent.click(screen.getByTestId("signup-and-run"));
+
+      // Let the watcher open the modal (slow path).
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(
+        screen.getByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).toBeInTheDocument();
+
+      // The signup moves to a phase that requires phone
+      // verification, interrupting the pending action.
+      await act(async () => {
+        setPhase(UserSignupPhase.PENDING_PHONE_VERIFICATION);
+      });
+
+      expect(
+        screen.queryByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId("in-progress").textContent).toBe("false");
+    });
+
+    it("does not interrupt on NOT_STARTED when signup has not progressed yet", async () => {
+      mockUserActivation(false);
+
+      renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      fireEvent.click(screen.getByTestId("signup-and-run"));
+
+      // The watcher opens the modal.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      // The modal should stay open because
+      // hasProgressedPastNotStarted is false.
+      expect(
+        screen.getByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe("sessionStorage recovery", () => {
+    it("recovers the intent and calls signupAndRun on NOT_STARTED", async () => {
+      sessionStorage.setItem(
+        "pending-signup-intent-key",
+        ProductType.OPENSHIFT_CONSOLE,
+      );
+
+      const { userCtx } = renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      // The effect fires on mount and should call signupUser.
+      await waitFor(() => {
+        expect(userCtx.signupUser).toHaveBeenCalledTimes(1);
+      });
+
+      // The intent should be consumed from sessionStorage.
+      expect(sessionStorage.getItem("pending-signup-intent-key")).toBeNull();
+    });
+
+    it("recovers the intent when phase is READY", async () => {
+      sessionStorage.setItem(
+        "pending-signup-intent-key",
+        ProductType.OPENSHIFT_CONSOLE,
+      );
+
+      renderAuthenticated({
+        userSignupPhase: UserSignupPhase.READY,
+      });
+
+      // The intent should be consumed.
+      await waitFor(() => {
+        expect(sessionStorage.getItem("pending-signup-intent-key")).toBeNull();
+      });
+    });
+
+    it("ignores the intent when phase is not NOT_STARTED or READY", () => {
+      sessionStorage.setItem(
+        "pending-signup-intent-key",
+        ProductType.OPENSHIFT_CONSOLE,
+      );
+
+      const { userCtx } = renderAuthenticated({
+        userSignupPhase: UserSignupPhase.PROVISIONING,
+      });
+
+      expect(userCtx.signupUser).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem("pending-signup-intent-key")).toBe(
+        ProductType.OPENSHIFT_CONSOLE,
+      );
+    });
+
+    it("ignores an invalid ProductType in sessionStorage", () => {
+      sessionStorage.setItem("pending-signup-intent-key", "bogus-product");
+
+      const { userCtx } = renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      expect(userCtx.signupUser).not.toHaveBeenCalled();
+      // The invalid value should still be consumed to prevent
+      // retries.
+      expect(sessionStorage.getItem("pending-signup-intent-key")).toBeNull();
+    });
+
+    it("does nothing when sessionStorage is empty", () => {
+      const { userCtx } = renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      expect(userCtx.signupUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("modal interaction", () => {
+    it("fires the action when Continue is clicked and canEnable is true", async () => {
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime,
+      });
+      mockUserActivation(false);
+
+      const onReady = vi.fn();
+      const productType = ProductType.OPENSHIFT_CONSOLE;
+
+      function ModalConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register-disabled"
+              onClick={() =>
+                registerAction(productType, {
+                  buttonLabel: ButtonLabel.TRY_IT,
+                  canEnable: false,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="register-enabled"
+              onClick={() =>
+                registerAction(productType, {
+                  buttonLabel: ButtonLabel.TRY_IT,
+                  canEnable: true,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(productType)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <ModalConsumer />,
+      );
+
+      // Register with canEnable: false and trigger signup.
+      await user.click(screen.getByTestId("register-disabled"));
+      await user.click(screen.getByTestId("run"));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      // Modal should be open.
+      const dialog = screen.getByRole("dialog", {
+        name: "User signup is in progress",
+      });
+      expect(dialog).toBeInTheDocument();
+
+      // The continue button should be disabled because canEnable
+      // is false.
+      const continueButton = within(dialog).getByRole("button", {
+        name: /Try it/,
+      });
+      expect(continueButton).toBeDisabled();
+
+      // Phase advances to READY and the card re-registers with
+      // canEnable: true.
+      await act(async () => {
+        setPhase(UserSignupPhase.READY);
+      });
+      await user.click(screen.getByTestId("register-enabled"));
+
+      await waitFor(() => {
+        expect(
+          within(dialog).getByRole("button", { name: /Try it/ }),
+        ).toBeEnabled();
+      });
+
+      await user.click(within(dialog).getByRole("button", { name: /Try it/ }));
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+    });
+
+    it("closes the modal and resets progress when the user dismisses it", async () => {
+      const user = userEvent.setup({
+        advanceTimers: vi.advanceTimersByTime,
+      });
+      mockUserActivation(false);
+
+      renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      await user.click(screen.getByTestId("signup-and-run"));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(
+        screen.getByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).toBeInTheDocument();
+
+      // Close the modal via the X button.
+      await user.click(screen.getByRole("button", { name: "Close" }));
+
+      expect(
+        screen.queryByRole("dialog", {
+          name: "User signup is in progress",
+        }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId("in-progress").textContent).toBe("false");
+    });
+  });
+
+  describe("cleanup", () => {
+    it("clears the watcher interval on unmount", async () => {
+      const clearIntervalSpy = vi.spyOn(global, "clearInterval");
+
+      const { unmount } = renderAuthenticated({
+        userSignupPhase: UserSignupPhase.NOT_STARTED,
+      });
+
+      fireEvent.click(screen.getByTestId("signup-and-run"));
+
+      unmount();
+
+      expect(clearIntervalSpy).toHaveBeenCalled();
+    });
+  });
+});

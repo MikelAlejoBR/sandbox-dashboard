@@ -100,10 +100,16 @@ function makeSandboxContext(
 function renderLayout(
   route = "/",
   sandboxOverrides: Partial<UserContextType> = {},
+  authOverrides: Partial<AuthenticatedContextValue> = {},
 ) {
+  const auth: AuthenticatedContextValue = {
+    ...authValue,
+    ...authOverrides,
+  } as AuthenticatedContextValue;
+
   return render(
     <NotificationProvider>
-      <AuthenticatedContext.Provider value={authValue}>
+      <AuthenticatedContext.Provider value={auth}>
         <UserContext.Provider value={makeSandboxContext(sandboxOverrides)}>
           <ThemeProvider>
             <MemoryRouter initialEntries={[route]}>
@@ -198,18 +204,31 @@ describe("Layout", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("falls back to givenName when familyName is missing", () => {
-    renderLayout("/", {
-      user: { ...readyUserFixture, familyName: "" },
-    });
-    expect(screen.queryByText("John Doe")).not.toBeInTheDocument();
-    expect(screen.getByText("John")).toBeInTheDocument();
-  });
-
-  it("falls back to 'User' when givenName is also missing", () => {
+  it("falls back to auth context names when signup user names are missing", () => {
     renderLayout("/", {
       user: { ...readyUserFixture, givenName: "", familyName: "" },
     });
+    // The signup user has no names, so the auth context names are
+    // used instead.
+    expect(screen.getByText("John Doe")).toBeInTheDocument();
+  });
+
+  it("falls back to givenName when familyName is missing from both user and auth", () => {
+    renderLayout(
+      "/",
+      { user: { ...readyUserFixture, givenName: "", familyName: "" } },
+      { givenName: "Jane", familyName: "" },
+    );
+    expect(screen.queryByText("Jane Doe")).not.toBeInTheDocument();
+    expect(screen.getByText("Jane")).toBeInTheDocument();
+  });
+
+  it("falls back to 'User' when all names are empty", () => {
+    renderLayout(
+      "/",
+      { user: { ...readyUserFixture, givenName: "", familyName: "" } },
+      { givenName: "", familyName: "" },
+    );
     expect(screen.getByText("User")).toBeInTheDocument();
   });
 

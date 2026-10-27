@@ -39,10 +39,10 @@ test.describe("Catalog page", () => {
   });
 
   test.describe(
-    "Landing page for non-ready users",
+    "Banner content for non-ready users",
     { tag: "@mock-only" },
     () => {
-      test("shows the landing page when user has not started signup", async ({
+      test("shows the signup banner and catalog when user has not started signup", async ({
         page,
       }) => {
         await page.addInitScript((phase) => {
@@ -52,25 +52,27 @@ test.describe("Catalog page", () => {
         }, UserSignupPhase.NOT_STARTED);
         await page.goto("/");
 
-        const hero = page.locator("#top");
-
-        // The landing page should be shown instead of the catalog.
+        // The banner should invite the user to try the products.
         await expect(
-          page.getByRole("heading", { level: 1, name: /Trying/ }),
+          page.getByRole("heading", {
+            level: 1,
+            name: "Try Red Hat products",
+          }),
         ).toBeVisible();
 
-        // The catalog product cards should not be visible.
+        // The product catalog should still be visible with the product
+        // cards and their action buttons.
         await expect(
           page.getByRole("region", { name: "Product catalog" }),
-        ).not.toBeVisible();
-
-        // The CTA button should be visible in the hero section.
+        ).toBeVisible();
         await expect(
-          hero.getByRole("button", { name: "Start your free trial" }),
+          page
+            .getByRole("article", { name: "OpenShift product card" })
+            .getByRole("button", { name: "Try it" }),
         ).toBeVisible();
       });
 
-      test("shows the landing page with error info when user is blocked", async ({
+      test("shows a suspended banner when the user is blocked", async ({
         page,
       }) => {
         await page.addInitScript((phase) => {
@@ -81,15 +83,13 @@ test.describe("Catalog page", () => {
 
         await page.goto("/");
 
-        // The landing page should be shown with no CTA button.
+        // The banner should indicate the account is suspended.
         await expect(
-          page.getByRole("heading", { level: 1, name: /Trying/ }),
+          page.getByRole("heading", { level: 1, name: /suspended/i }),
         ).toBeVisible();
       });
 
-      test("shows the landing page with phone verification info", async ({
-        page,
-      }) => {
+      test("shows phone verification info in the banner", async ({ page }) => {
         await page.addInitScript((phase) => {
           window.__playwrightOverrides__ ??= {};
           window.__playwrightOverrides__.__signup__ ??= {};
@@ -98,18 +98,14 @@ test.describe("Catalog page", () => {
 
         await page.goto("/");
 
-        const hero = page.locator("#top");
-
-        await expect(hero.getByText("Phone verification needed")).toBeVisible();
-
+        // The banner should show a welcome and phone verification info.
         await expect(
-          hero.getByRole("button", { name: "Verify your phone" }),
+          page.getByRole("heading", { level: 1, name: /Welcome/ }),
         ).toBeVisible();
+        await expect(page.getByText("verify your phone")).toBeVisible();
       });
 
-      test("shows the landing page with manual approval info", async ({
-        page,
-      }) => {
+      test("shows manual approval info in the banner", async ({ page }) => {
         await page.addInitScript((phase) => {
           window.__playwrightOverrides__ ??= {};
           window.__playwrightOverrides__.__signup__ ??= {};
@@ -118,9 +114,11 @@ test.describe("Catalog page", () => {
 
         await page.goto("/");
 
+        // The banner should show a welcome and manual approval info.
         await expect(
-          page.locator("#top").getByText("Pending manual approval"),
+          page.getByRole("heading", { level: 1, name: /Welcome/ }),
         ).toBeVisible();
+        await expect(page.getByText("manual verification")).toBeVisible();
       });
     },
   );

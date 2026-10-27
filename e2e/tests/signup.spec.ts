@@ -2,19 +2,9 @@ import test, { expect } from "@playwright/test";
 
 import { UserSignupPhase } from "../../src/hooks/userSignupPhase";
 
-/**
- * Returns a locator scoped to the hero section of the landing page. The
- * SandboxCta component renders in both the hero and the final CTA
- * section, so we need to scope to the first one to avoid strict-mode
- * violations.
- */
-function heroSection(page: import("@playwright/test").Page) {
-  return page.locator("#top");
-}
-
 test.describe("Signup flow", { tag: "@mock-only" }, () => {
-  test.describe("Landing page CTA", () => {
-    test("shows 'Start your free trial' button and triggers signup", async ({
+  test.describe("Product card signup", () => {
+    test("triggers signup when clicking a product Try it button", async ({
       page,
     }) => {
       await page.addInitScript((phase) => {
@@ -25,24 +15,22 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
 
       await page.goto("/");
 
-      // The landing page should be shown because the user is not READY.
-      const ctaButton = heroSection(page).getByRole("button", {
-        name: "Start your free trial",
-      });
-      await expect(ctaButton).toBeVisible();
-
-      // Click the CTA to start signup.
-      await ctaButton.click();
-
-      // The button should be disabled while signup is in progress.
+      // The banner should show the non-signed-up content.
       await expect(
-        heroSection(page).getByRole("button", {
-          name: "Setting up access...",
+        page.getByRole("heading", {
+          level: 1,
+          name: "Try Red Hat products",
         }),
-      ).toBeDisabled();
+      ).toBeVisible();
 
-      // Once the signup finishes and the user becomes READY, the
-      // ReadyGuard should render the product catalog.
+      // Click "Try it" on the OpenShift card to start signup.
+      const openshiftCard = page.getByRole("article", {
+        name: "OpenShift product card",
+      });
+      await openshiftCard.getByRole("button", { name: "Try it" }).click();
+
+      // Once the signup finishes and the user becomes READY, the banner
+      // should show the welcome message.
       await expect(
         page.getByRole("heading", {
           level: 1,
@@ -61,14 +49,18 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
 
       await page.goto("/");
 
-      // Click the CTA to start signup.
-      await heroSection(page)
-        .getByRole("button", { name: "Start your free trial" })
+      // Click "Try it" on the OpenShift card to start signup.
+      await page
+        .getByRole("article", { name: "OpenShift product card" })
+        .getByRole("button", { name: "Try it" })
         .click();
 
-      // Verify that the error info box appears on the landing page.
+      // Verify that the error toast appears.
       await expect(
-        heroSection(page).getByText("Unable to sign you up"),
+        page.getByRole("heading", {
+          level: 4,
+          name: /Danger alert:.*Unable to sign you up/,
+        }),
       ).toBeVisible();
     });
 
@@ -81,16 +73,11 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
 
       await page.goto("/");
 
-      // The landing page should show the "Verify your phone" CTA button
-      // and an informative message.
+      // The banner should show a welcome and phone verification info.
       await expect(
-        heroSection(page).getByRole("button", {
-          name: "Verify your phone",
-        }),
+        page.getByRole("heading", { level: 1, name: /Welcome/ }),
       ).toBeVisible();
-      await expect(
-        heroSection(page).getByText("Phone verification needed"),
-      ).toBeVisible();
+      await expect(page.getByText("verify your phone")).toBeVisible();
     });
 
     test("shows manual approval info when needed", async ({ page }) => {
@@ -102,10 +89,11 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
 
       await page.goto("/");
 
-      // The CTA button should not be visible, but the info box should.
+      // The banner should show a welcome and manual approval info.
       await expect(
-        heroSection(page).getByText("Pending manual approval"),
+        page.getByRole("heading", { level: 1, name: /Welcome/ }),
       ).toBeVisible();
+      await expect(page.getByText("manual verification")).toBeVisible();
     });
   });
 
@@ -120,14 +108,15 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
       await page.goto("/");
     });
 
-    test("opens from the CTA button and closes via Cancel", async ({
+    test("opens from a product card button and closes via Cancel", async ({
       page,
     }) => {
-      // Click the "Verify your phone" CTA to trigger the modal opening.
-      const ctaButton = heroSection(page).getByRole("button", {
-        name: "Verify your phone",
-      });
-      await ctaButton.click();
+      // Click "Try it" on a product card to trigger the phone
+      // verification modal.
+      await page
+        .getByRole("article", { name: "OpenShift product card" })
+        .getByRole("button", { name: "Try it" })
+        .click();
 
       const phoneVerificationModal = page.getByRole("dialog", {
         name: "Phone verification",
@@ -146,9 +135,10 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
     test("shows errors for an invalid country code or phone number", async ({
       page,
     }) => {
-      // Click the CTA to open the modal.
-      await heroSection(page)
-        .getByRole("button", { name: "Verify your phone" })
+      // Click a product card to open the modal.
+      await page
+        .getByRole("article", { name: "OpenShift product card" })
+        .getByRole("button", { name: "Try it" })
         .click();
 
       const phoneVerificationModal = page.getByRole("dialog", {
@@ -198,9 +188,10 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
     test("closes the modal after a valid verification code", async ({
       page,
     }) => {
-      // Click the CTA to open the modal.
-      await heroSection(page)
-        .getByRole("button", { name: "Verify your phone" })
+      // Click a product card to open the modal.
+      await page
+        .getByRole("article", { name: "OpenShift product card" })
+        .getByRole("button", { name: "Try it" })
         .click();
 
       const phoneVerificationModal = page.getByRole("dialog", {
@@ -252,7 +243,7 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
       await verifyButton.click();
 
       // After verification, the user's data is refetched and the
-      // ReadyGuard should show the product catalog.
+      // banner should show the product catalog.
       await expect(
         page.getByRole("heading", {
           level: 1,
@@ -264,8 +255,9 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
     test("shows an error when the phone number is already in use", async ({
       page,
     }) => {
-      await heroSection(page)
-        .getByRole("button", { name: "Verify your phone" })
+      await page
+        .getByRole("article", { name: "OpenShift product card" })
+        .getByRole("button", { name: "Try it" })
         .click();
 
       const phoneVerificationModal = page.getByRole("dialog", {
@@ -304,8 +296,9 @@ test.describe("Signup flow", { tag: "@mock-only" }, () => {
     test("shows an error when the verification code is invalid", async ({
       page,
     }) => {
-      await heroSection(page)
-        .getByRole("button", { name: "Verify your phone" })
+      await page
+        .getByRole("article", { name: "OpenShift product card" })
+        .getByRole("button", { name: "Try it" })
         .click();
 
       const phoneVerificationModal = page.getByRole("dialog", {

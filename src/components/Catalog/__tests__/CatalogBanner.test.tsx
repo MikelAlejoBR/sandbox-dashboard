@@ -1,11 +1,30 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import {
+  AuthenticatedContext,
+  type AuthenticatedContextValue,
+} from "../../../auth/AuthenticatedContext";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
 import { UserSignupPhase } from "../../../hooks/userSignupPhase";
 import { readyUserFixture } from "../../../mocks/fixtures";
 import { CatalogBanner } from "../CatalogBanner";
+
+const authenticatedValue: AuthenticatedContextValue = {
+  authenticated: true,
+  token: "test-token",
+  givenName: "Test",
+  familyName: "User",
+  email: "test@example.com",
+  username: "testuser",
+  logout: vi.fn(),
+};
+
+const unauthenticatedValue: AuthenticatedContextValue = {
+  authenticated: false,
+  login: vi.fn(),
+};
 
 function makeContext(
   overrides: Partial<UserContextType> = {},
@@ -19,141 +38,100 @@ function makeContext(
   };
 }
 
+/**
+ * Renders the banner with the required authentication and user
+ * context providers.
+ */
+function renderBanner(
+  authValue: AuthenticatedContextValue = authenticatedValue,
+  userCtxOverrides: Partial<UserContextType> = {},
+) {
+  return render(
+    <AuthenticatedContext.Provider value={authValue}>
+      <UserContext.Provider value={makeContext(userCtxOverrides)}>
+        <CatalogBanner />
+      </UserContext.Provider>
+    </AuthenticatedContext.Provider>,
+  );
+}
+
 describe("CatalogBanner", () => {
   it("renders welcome message with user name", () => {
-    render(
-      <UserContext.Provider value={makeContext()}>
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner();
     expect(screen.getByText(/Welcome, John/)).toBeInTheDocument();
   });
 
   it("shows skeletons while fetching data", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          userSignupPhase: UserSignupPhase.INITIAL_FETCH,
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, {
+      userSignupPhase: UserSignupPhase.INITIAL_FETCH,
+    });
     expect(screen.getByTestId("banner-skeleton")).toBeInTheDocument();
   });
 
   it("shows try products message when signup has not started", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          user: undefined,
-          userSignupPhase: UserSignupPhase.NOT_STARTED,
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, {
+      user: undefined,
+      userSignupPhase: UserSignupPhase.NOT_STARTED,
+    });
     expect(screen.getByText("Try Red Hat products")).toBeInTheDocument();
   });
 
-  it("shows account not ready message when phase is BLOCKED", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          user: undefined,
-          userSignupPhase: UserSignupPhase.BLOCKED,
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+  it("shows suspended message when phase is BLOCKED", () => {
+    renderBanner(authenticatedValue, {
+      user: undefined,
+      userSignupPhase: UserSignupPhase.BLOCKED,
+    });
     expect(
       screen.getByText(
-        "Your account is not ready to use the Developer Sandbox.",
+        "Your account is no longer allowed to use the Developer Sandbox.",
       ),
     ).toBeInTheDocument();
   });
 
   it("shows verification prompt when pending phone verification", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          userSignupPhase: UserSignupPhase.PENDING_PHONE_VERIFICATION,
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, {
+      userSignupPhase: UserSignupPhase.PENDING_PHONE_VERIFICATION,
+    });
     expect(
-      screen.getByText(/Click on "Try it" to initiate/),
+      screen.getByText(/verify your phone to be able to gain access/),
     ).toBeInTheDocument();
   });
 
   it("shows pending approval message", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          userSignupPhase: UserSignupPhase.PENDING_MANUAL_APPROVAL,
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, {
+      userSignupPhase: UserSignupPhase.PENDING_MANUAL_APPROVAL,
+    });
     expect(
-      screen.getByText("Please wait for your trial to be approved."),
+      screen.getByText(/manual verification to use the products/),
     ).toBeInTheDocument();
   });
 
   it("shows welcome banner when signup phase is PROVISIONING and user exists", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          userSignupPhase: UserSignupPhase.PROVISIONING,
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, {
+      userSignupPhase: UserSignupPhase.PROVISIONING,
+    });
     expect(screen.getByText(/Welcome, John/)).toBeInTheDocument();
   });
 
   it("shows welcome banner when signup phase is SIGNING_UP and user exists", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          userSignupPhase: UserSignupPhase.SIGNING_UP,
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, {
+      userSignupPhase: UserSignupPhase.SIGNING_UP,
+    });
     expect(screen.getByText(/Welcome, John/)).toBeInTheDocument();
   });
 
   it("shows 'Try Red Hat products' when signup phase is SIGNING_UP and user is undefined", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          user: undefined,
-          userSignupPhase: UserSignupPhase.SIGNING_UP,
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, {
+      user: undefined,
+      userSignupPhase: UserSignupPhase.SIGNING_UP,
+    });
     expect(screen.getByText("Try Red Hat products")).toBeInTheDocument();
   });
 
   it("falls back to username when givenName is missing", () => {
-    render(
-      <UserContext.Provider
-        value={makeContext({
-          user: { ...readyUserFixture, givenName: "" },
-        })}
-      >
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, {
+      user: { ...readyUserFixture, givenName: "" },
+    });
     expect(screen.getByText(/Welcome, johndoe/)).toBeInTheDocument();
   });
 
@@ -164,11 +142,7 @@ describe("CatalogBanner", () => {
       ...readyUserFixture,
       endDate: futureDate.toISOString(),
     };
-    render(
-      <UserContext.Provider value={makeContext({ user })}>
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, { user });
     expect(
       screen.getByText(/Your free trial expires in \d+ days/),
     ).toBeInTheDocument();
@@ -181,11 +155,7 @@ describe("CatalogBanner", () => {
       ...readyUserFixture,
       endDate: futureDate.toISOString(),
     };
-    render(
-      <UserContext.Provider value={makeContext({ user })}>
-        <CatalogBanner />
-      </UserContext.Provider>,
-    );
+    renderBanner(authenticatedValue, { user });
 
     await userEvent.click(
       screen.getByRole("button", { name: "Show trial information" }),
@@ -198,5 +168,16 @@ describe("CatalogBanner", () => {
       "href",
       "https://developers.redhat.com/learn/openshift/move-your-developer-sandbox-objects-another-cluster",
     );
+  });
+
+  it("shows try products banner for unauthenticated users", () => {
+    renderBanner(unauthenticatedValue, {
+      user: undefined,
+      userSignupPhase: UserSignupPhase.UNAUTHENTICATED,
+    });
+    expect(screen.getByText("Try Red Hat products")).toBeInTheDocument();
+    expect(
+      screen.getByText(/Log in to or sign up for a Red Hat account/),
+    ).toBeInTheDocument();
   });
 });

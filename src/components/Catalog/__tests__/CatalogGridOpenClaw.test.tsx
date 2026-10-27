@@ -1,6 +1,10 @@
 import { render, screen, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 
+import {
+  AuthenticatedContext,
+  type AuthenticatedContextValue,
+} from "../../../auth/AuthenticatedContext";
 import { AnalyticsContext } from "../../../hooks/AnalyticsContext";
 import {
   AnsibleContext,
@@ -9,6 +13,7 @@ import {
 import { NotificationProvider } from "../../../hooks/NotificationProvider";
 import type { OpenClawContextType } from "../../../hooks/OpenClawContext";
 import { OpenClawContext } from "../../../hooks/OpenClawContext";
+import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
 import { PublicConfigurationContext } from "../../../hooks/PublicConfigurationContext";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
@@ -25,6 +30,16 @@ vi.mock("../../../hooks/AnsibleProvider", () => ({
 vi.mock("../../../hooks/OpenClawProvider", () => ({
   OpenClawProvider: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
+
+const authenticatedUser: AuthenticatedContextValue = {
+  authenticated: true,
+  email: "johndoe@redhat.com",
+  familyName: "Doe",
+  givenName: "John",
+  logout: vi.fn(),
+  token: "mock-token",
+  username: "johndoe",
+};
 
 function makeSandboxContext(
   overrides: Partial<UserContextType> = {},
@@ -57,21 +72,32 @@ function renderGrid(openClawOverrides: Partial<OpenClawContextType> = {}) {
   const ansibleCtx = makeAnsibleContext();
   const openClawCtx = makeOpenClawContext(openClawOverrides);
   render(
-    <NotificationProvider>
-      <PublicConfigurationContext.Provider
-        value={{ disabledIntegrations: new Set(), isLoading: false }}
-      >
-        <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
-          <AnsibleContext.Provider value={ansibleCtx}>
-            <OpenClawContext.Provider value={openClawCtx}>
-              <UserContext.Provider value={sandboxCtx}>
-                <CatalogGrid />
-              </UserContext.Provider>
-            </OpenClawContext.Provider>
-          </AnsibleContext.Provider>
-        </AnalyticsContext.Provider>
-      </PublicConfigurationContext.Provider>
-    </NotificationProvider>,
+    <AuthenticatedContext.Provider value={authenticatedUser}>
+      <NotificationProvider>
+        <PublicConfigurationContext.Provider
+          value={{
+            disabledIntegrations: new Set(),
+            isLoading: false,
+          }}
+        >
+          <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
+            <PhoneVerificationContext.Provider
+              value={{
+                openPhoneVerificationModal: vi.fn(),
+              }}
+            >
+              <AnsibleContext.Provider value={ansibleCtx}>
+                <OpenClawContext.Provider value={openClawCtx}>
+                  <UserContext.Provider value={sandboxCtx}>
+                    <CatalogGrid />
+                  </UserContext.Provider>
+                </OpenClawContext.Provider>
+              </AnsibleContext.Provider>
+            </PhoneVerificationContext.Provider>
+          </AnalyticsContext.Provider>
+        </PublicConfigurationContext.Provider>
+      </NotificationProvider>
+    </AuthenticatedContext.Provider>,
   );
 }
 

@@ -1,7 +1,7 @@
 .banner-body {
   margin: 0 auto;
   max-width: 2000px;
-  padding: 21px 100px 0 100px;
+  padding: 21px 100px 10px 100px;
   width: 100%;
 }
 
@@ -19,4 +19,19 @@
 
 .banner-body__image-mirror {
   transform: scaleX(-1);
+}
+
+.banner-body__login-signup-button {
+  background-color: var(--rh-color-brand-red-on-light);
+  font-weight: bold;
+  transition: none;
+}
+
+.banner-body__login-signup-button:hover {
+  background-color: var(--rh-color-brand-red-dark);
+}
+
+.pf-v6-theme-dark .banner-body__login-signup-button {
+  box-shadow: 0 0 1px var(--rh-color-brand-red-dark);
+  color: var(--rh-color-text-primary-on-dark);
 }
