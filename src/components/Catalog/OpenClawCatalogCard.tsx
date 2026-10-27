@@ -1,11 +1,15 @@
 import { AlertVariant } from "@patternfly/react-core";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { SUPPORT_EMAIL } from "../../const";
 import { UserFacingError } from "../../error/UserFacingError";
 import { useAnalyticsContext } from "../../hooks/AnalyticsContext";
 import { useNotifications } from "../../hooks/NotificationContext";
 import { useOpenClawContext } from "../../hooks/OpenClawContext";
+import { usePhoneVerificationContext } from "../../hooks/PhoneVerificationContext";
+import { useSignupAction } from "../../hooks/signupAction/SignupActionContext";
+import { useUserContext } from "../../hooks/UserContext";
+import { UserSignupPhase } from "../../hooks/userSignupPhase";
 import type { Product } from "../../types/product";
 import logger from "../../utils/logger";
 import type { AddedCredential } from "../../utils/openclaw-providers";
@@ -48,6 +52,18 @@ function getButtonLabel(status: OpenClawStatus): ButtonLabel {
 }
 
 /**
+ * Whether the OpenClaw READY handler can run. The connected provider
+ * is a NO-OP (`USER_NOT_READY`) until signup finishes, and
+ * `INITIAL_FETCH` means the instance status has not been loaded yet.
+ */
+function canRunOpenClawReadyAction(status: OpenClawStatus): boolean {
+  return (
+    status !== OpenClawStatus.USER_NOT_READY &&
+    status !== OpenClawStatus.INITIAL_FETCH
+  );
+}
+
+/**
  * Obtains a label, if applicable.
  * @param status the status from which derive the label.
  * @returns a label text and color depending on the given status.
@@ -80,8 +96,8 @@ type OpenClawCatalogCardProps = {
   /** The product to be shown in the card */
   product: Product;
   /**
-   * Shows or hides the hint in the card that hints that the product has been
-   * tried.
+   * Shows or hides the hint in the card that hints that the product
+   * has been tried.
    */
   isTriedProductHintVisible: boolean;
   /**
@@ -97,6 +113,9 @@ export function OpenClawCatalogCard({
   markProductAsTried,
 }: OpenClawCatalogCardProps) {
   const { trackAnalytics } = useAnalyticsContext();
+  const { userSignupPhase } = useUserContext();
+  const { isSignupInProgress, signupAndRun, registerAction } =
+    useSignupAction();
   const {
     clearDeletionError,
     clearProvisioningError,
@@ -110,6 +129,7 @@ export function OpenClawCatalogCard({
   } = useOpenClawContext();
 
   const { addAlert, addAlertFromError } = useNotifications();
+  const { openPhoneVerificationModal } = usePhoneVerificationContext();
 
   const [isOpenClawInfoModalOpen, setOpenClawInfoModalOpen] =
     useState<boolean>(false);
@@ -127,15 +147,20 @@ export function OpenClawCatalogCard({
 
   // Determine the status of the interactive buttons.
   const isPrimaryButtonDisabled =
-    buttonLabel === ButtonLabel.LOADING || buttonLabel === ButtonLabel.DELETING;
+    isSignupInProgress ||
+    buttonLabel === ButtonLabel.LOADING ||
+    buttonLabel === ButtonLabel.DELETING ||
+    userSignupPhase === UserSignupPhase.INITIAL_FETCH;
   const isPrimaryButtonSpinnerVisible =
     buttonLabel === ButtonLabel.LOADING ||
     buttonLabel === ButtonLabel.DELETING ||
-    buttonLabel === ButtonLabel.PROVISIONING;
+    buttonLabel === ButtonLabel.PROVISIONING ||
+    userSignupPhase === UserSignupPhase.INITIAL_FETCH;
   const isPrimaryButtonExtIconVisible =
     buttonLabel === ButtonLabel.LAUNCH ||
     (buttonLabel === ButtonLabel.TRY_IT && !!uiURL);
   const isDeleteButtonVisible =
+    userSignupPhase !== UserSignupPhase.INITIAL_FETCH &&
     status !== OpenClawStatus.INITIAL_FETCH &&
     status !== OpenClawStatus.USER_NOT_READY &&
     status !== OpenClawStatus.NEW &&
@@ -144,12 +169,14 @@ export function OpenClawCatalogCard({
     status !== OpenClawStatus.UNKNOWN;
 
   /**
-   * Routes caught errors to the appropriate notification mechanism: user-facing
-   * errors are shown via their own alert, while unexpected exceptions are
-   * logged and surfaced as a generic danger notification.
+   * Routes caught errors to the appropriate notification mechanism:
+   * user-facing errors are shown via their own alert, while
+   * unexpected exceptions are logged and surfaced as a generic danger
+   * notification.
    * @param error the caught exception.
-   * @param fallbackTitle the alert title used for non-user-facing errors.
-   * @param fallbackMessage the alert description used for non-user-facing errors.
+   * @param fallbackTitle the alert title for non-user-facing errors.
+   * @param fallbackMessage the alert description for
+   *                        non-user-facing errors.
    */
   const handleOpenClawApiError = useCallback(
     (error: unknown, fallbackTitle: string, fallbackMessage: string): void => {
@@ -164,10 +191,11 @@ export function OpenClawCatalogCard({
   );
 
   /**
-   * It handles opening the OpenClaw instance's URL, reprovisioning the
-   * instance if it's idled or opens the modal to provision it otherwise.
+   * Once the user signup is ready, it handles opening the OpenClaw
+   * instance's URL, reprovisioning the instance if it's idled or
+   * opens the modal to provision it otherwise.
    */
-  const handleOnClickPrimaryButton = useCallback(async () => {
+  const handleReadyPrimaryAction = useCallback(async () => {
     switch (status) {
       case OpenClawStatus.USER_NOT_READY:
         return;
@@ -198,9 +226,65 @@ export function OpenClawCatalogCard({
     }
   }, [handleOpenClawApiError, status, unidleInstance]);
 
+  // Register the action for the OpenClaw catalog card in case the
+  // user signup takes longer than expected.
+  useEffect(() => {
+    // Do not register any actions if the user is unauthenticated.
+    if (userSignupPhase === UserSignupPhase.UNAUTHENTICATED) {
+      return;
+    }
+
+    registerAction(product.type, {
+      buttonLabel,
+      canEnable:
+        userSignupPhase === UserSignupPhase.READY &&
+        canRunOpenClawReadyAction(status),
+      onReady: () => {
+        void handleReadyPrimaryAction();
+      },
+    });
+  }, [
+    buttonLabel,
+    handleReadyPrimaryAction,
+    product.type,
+    registerAction,
+    status,
+    userSignupPhase,
+  ]);
+
   /**
-   * Handles the provisioning of a new OpenClaw instance once the user signup
-   * is available.
+   * Routes the catalog primary button through signup continuation or
+   * the ready-state OpenClaw actions.
+   */
+  const handleOnClickPrimaryButton = useCallback(() => {
+    switch (userSignupPhase) {
+      case UserSignupPhase.UNAUTHENTICATED:
+      case UserSignupPhase.NOT_STARTED:
+      case UserSignupPhase.SIGNING_UP:
+      case UserSignupPhase.PROVISIONING:
+        signupAndRun(product.type);
+        return;
+      case UserSignupPhase.PENDING_PHONE_VERIFICATION:
+        openPhoneVerificationModal();
+        return;
+      case UserSignupPhase.READY:
+        void handleReadyPrimaryAction();
+        return;
+      case UserSignupPhase.BLOCKED:
+      default:
+        return;
+    }
+  }, [
+    signupAndRun,
+    handleReadyPrimaryAction,
+    openPhoneVerificationModal,
+    product.type,
+    userSignupPhase,
+  ]);
+
+  /**
+   * Handles the provisioning of a new OpenClaw instance once the user
+   * signup is available.
    */
   const handleOnClickProvision = useCallback(
     async (credentials: AddedCredential[]): Promise<void> => {
@@ -237,8 +321,8 @@ export function OpenClawCatalogCard({
   );
 
   /**
-   * Handles the deletion of the OpenClaw instance once the user signup is
-   * available.
+   * Handles the deletion of the OpenClaw instance once the user
+   * signup is available.
    */
   const handleOpenClawDelete = useCallback(async () => {
     if (

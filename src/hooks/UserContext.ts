@@ -1,6 +1,5 @@
 import { createContext, useContext } from "react";
 
-import type { UserFacingError } from "../error/UserFacingError";
 import { type User } from "../types";
 import type { UserSignupPhase } from "./userSignupPhase";
 
@@ -11,8 +10,6 @@ export interface UserContextType {
   signupUser: () => void;
   /** The user object representing the logged in and signed up user. */
   user?: User;
-  /** The last user facing error reported by the provider. */
-  userError?: UserFacingError;
   /** Holds the phase in which the user signup currently is. */
   userSignupPhase: UserSignupPhase;
 }

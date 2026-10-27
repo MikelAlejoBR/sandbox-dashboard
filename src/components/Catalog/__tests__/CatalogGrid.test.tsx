@@ -2,6 +2,10 @@ import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 
+import {
+  AuthenticatedContext,
+  type AuthenticatedContextValue,
+} from "../../../auth/AuthenticatedContext";
 import { AnalyticsContext } from "../../../hooks/AnalyticsContext";
 import {
   AnsibleContext,
@@ -10,6 +14,7 @@ import {
 import { NotificationProvider } from "../../../hooks/NotificationProvider";
 import type { OpenClawContextType } from "../../../hooks/OpenClawContext";
 import { OpenClawContext } from "../../../hooks/OpenClawContext";
+import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
 import type { PublicConfigurationContextType } from "../../../hooks/PublicConfigurationContext";
 import { PublicConfigurationContext } from "../../../hooks/PublicConfigurationContext";
 import type { UserContextType } from "../../../hooks/UserContext";
@@ -42,6 +47,16 @@ function makeContext(
     ...overrides,
   };
 }
+
+const authenticatedUser: AuthenticatedContextValue = {
+  authenticated: true,
+  email: "johndoe@redhat.com",
+  familyName: "Doe",
+  givenName: "John",
+  logout: vi.fn(),
+  token: "mock-token",
+  username: "johndoe",
+};
 
 function makeUIConfigContext(
   overrides: Partial<PublicConfigurationContextType> = {},
@@ -77,19 +92,27 @@ function renderGridTree(
   uiConfigCtx: PublicConfigurationContextType,
 ) {
   return (
-    <NotificationProvider>
-      <PublicConfigurationContext.Provider value={uiConfigCtx}>
-        <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
-          <AnsibleContext.Provider value={ansibleCtx}>
-            <OpenClawContext.Provider value={openClawCtx}>
-              <UserContext.Provider value={ctx}>
-                <CatalogGrid />
-              </UserContext.Provider>
-            </OpenClawContext.Provider>
-          </AnsibleContext.Provider>
-        </AnalyticsContext.Provider>
-      </PublicConfigurationContext.Provider>
-    </NotificationProvider>
+    <AuthenticatedContext.Provider value={authenticatedUser}>
+      <NotificationProvider>
+        <PublicConfigurationContext.Provider value={uiConfigCtx}>
+          <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
+            <PhoneVerificationContext.Provider
+              value={{
+                openPhoneVerificationModal: vi.fn(),
+              }}
+            >
+              <AnsibleContext.Provider value={ansibleCtx}>
+                <OpenClawContext.Provider value={openClawCtx}>
+                  <UserContext.Provider value={ctx}>
+                    <CatalogGrid />
+                  </UserContext.Provider>
+                </OpenClawContext.Provider>
+              </AnsibleContext.Provider>
+            </PhoneVerificationContext.Provider>
+          </AnalyticsContext.Provider>
+        </PublicConfigurationContext.Provider>
+      </NotificationProvider>
+    </AuthenticatedContext.Provider>
   );
 }
 

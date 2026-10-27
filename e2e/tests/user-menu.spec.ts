@@ -21,7 +21,7 @@ test.describe("User menu", () => {
   );
 
   test(
-    "is not visible when the user is not ready",
+    "shows the user menu without Reset Workspaces when user is not ready",
     { tag: "@mock-only" },
     async ({ page }) => {
       await page.addInitScript((phase) => {
@@ -31,13 +31,18 @@ test.describe("User menu", () => {
       }, UserSignupPhase.NOT_STARTED);
       await page.goto("/");
 
-      // Non-ready users see the landing page, which does not include
-      // the user menu at all.
+      // Authenticated non-ready users still see the user menu, but
+      // the Reset Workspaces option is only for READY users.
+      const toggle = page.getByRole("button", { name: "User menu" });
+      await expect(toggle).toBeVisible();
+
+      await toggle.click();
+
       await expect(
-        page.getByRole("heading", { level: 1, name: /Trying/ }),
+        page.getByRole("menuitem", { name: "Log out" }),
       ).toBeVisible();
       await expect(
-        page.getByRole("button", { name: "User menu" }),
+        page.getByRole("menuitem", { name: "Reset Workspaces" }),
       ).not.toBeVisible();
     },
   );

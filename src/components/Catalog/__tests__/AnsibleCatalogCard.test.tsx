@@ -1,6 +1,10 @@
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
+import {
+  AuthenticatedContext,
+  type AuthenticatedContextValue,
+} from "../../../auth/AuthenticatedContext";
 import { UserFacingError } from "../../../error/UserFacingError";
 import { AnalyticsContext } from "../../../hooks/AnalyticsContext";
 import {
@@ -8,6 +12,11 @@ import {
   type AnsibleContextType,
 } from "../../../hooks/AnsibleContext";
 import { NotificationProvider } from "../../../hooks/NotificationProvider";
+import { PhoneVerificationContext } from "../../../hooks/PhoneVerificationContext";
+import {
+  SignupActionContext,
+  type SignupActionContextType,
+} from "../../../hooks/signupAction/SignupActionContext";
 import type { UserContextType } from "../../../hooks/UserContext";
 import { UserContext } from "../../../hooks/UserContext";
 import { UserSignupPhase } from "../../../hooks/userSignupPhase";
@@ -18,6 +27,27 @@ import { AnsibleCatalogCard } from "../AnsibleCatalogCard";
 import { products } from "../productData";
 
 const aapProduct = products.find((p) => p.type === ProductType.AAP)!;
+
+const authenticatedUser: AuthenticatedContextValue = {
+  authenticated: true,
+  email: "johndoe@redhat.com",
+  familyName: "Doe",
+  givenName: "John",
+  logout: vi.fn(),
+  token: "mock-token",
+  username: "johndoe",
+};
+
+function makeSignupActionContext(
+  overrides: Partial<SignupActionContextType> = {},
+): SignupActionContextType {
+  return {
+    isSignupInProgress: false,
+    signupAndRun: vi.fn(),
+    registerAction: vi.fn(),
+    ...overrides,
+  };
+}
 
 function makeSandboxContext(
   overrides: Partial<UserContextType> = {},
@@ -51,22 +81,31 @@ function makeAnsibleContext(
 function renderCardTree(
   sandboxCtx: UserContextType,
   ansibleCtx: AnsibleContextType,
+  signupActionCtx: SignupActionContextType,
   markProductAsTried: (product: Product) => void,
 ) {
   return (
-    <NotificationProvider>
-      <UserContext.Provider value={sandboxCtx}>
-        <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
-          <AnsibleContext.Provider value={ansibleCtx}>
-            <AnsibleCatalogCard
-              product={aapProduct}
-              isTriedProductHintVisible={false}
-              markProductAsTried={markProductAsTried}
-            />
-          </AnsibleContext.Provider>
-        </AnalyticsContext.Provider>
-      </UserContext.Provider>
-    </NotificationProvider>
+    <AuthenticatedContext.Provider value={authenticatedUser}>
+      <NotificationProvider>
+        <UserContext.Provider value={sandboxCtx}>
+          <PhoneVerificationContext.Provider
+            value={{ openPhoneVerificationModal: vi.fn() }}
+          >
+            <SignupActionContext.Provider value={signupActionCtx}>
+              <AnalyticsContext.Provider value={{ trackAnalytics: vi.fn() }}>
+                <AnsibleContext.Provider value={ansibleCtx}>
+                  <AnsibleCatalogCard
+                    product={aapProduct}
+                    isTriedProductHintVisible={false}
+                    markProductAsTried={markProductAsTried}
+                  />
+                </AnsibleContext.Provider>
+              </AnalyticsContext.Provider>
+            </SignupActionContext.Provider>
+          </PhoneVerificationContext.Provider>
+        </UserContext.Provider>
+      </NotificationProvider>
+    </AuthenticatedContext.Provider>
   );
 }
 
@@ -74,12 +113,16 @@ function renderCard(
   sandboxOverrides: Partial<UserContextType> = {},
   ansibleOverrides: Partial<AnsibleContextType> = {},
   markProductAsTried?: (product: Product) => void,
+  signupActionOverrides: Partial<SignupActionContextType> = {},
 ) {
   const sandboxCtx = makeSandboxContext(sandboxOverrides);
   const ansibleCtx = makeAnsibleContext(ansibleOverrides);
+  const signupActionCtx = makeSignupActionContext(signupActionOverrides);
   const defaultMarkTried = markProductAsTried ?? vi.fn();
 
-  const view = render(renderCardTree(sandboxCtx, ansibleCtx, defaultMarkTried));
+  const view = render(
+    renderCardTree(sandboxCtx, ansibleCtx, signupActionCtx, defaultMarkTried),
+  );
 
   return {
     sandboxCtx,
@@ -91,8 +134,15 @@ function renderCard(
     ) => {
       view.rerender(
         renderCardTree(
-          makeSandboxContext({ ...sandboxOverrides, ...nextSandbox }),
-          makeAnsibleContext({ ...ansibleOverrides, ...nextAnsible }),
+          makeSandboxContext({
+            ...sandboxOverrides,
+            ...nextSandbox,
+          }),
+          makeAnsibleContext({
+            ...ansibleOverrides,
+            ...nextAnsible,
+          }),
+          signupActionCtx,
           defaultMarkTried,
         ),
       );
@@ -723,14 +773,14 @@ describe("AnsibleCatalogCard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("enables primary button regardless of userSignupPhase", () => {
+  it("disables primary button during INITIAL_FETCH", () => {
     renderCard(
       { userSignupPhase: UserSignupPhase.INITIAL_FETCH },
       { instanceStatus: { kind: "new" } },
     );
 
-    // The button should not be disabled by userSignupPhase anymore; only
-    // by the instance status (LOADING or DELETING).
-    expect(getPrimaryButton("Provision")).toBeEnabled();
+    // The spinner is shown, making the accessible name include
+    // "Loading...".
+    expect(getPrimaryButton(/Provision/)).toBeDisabled();
   });
 });
