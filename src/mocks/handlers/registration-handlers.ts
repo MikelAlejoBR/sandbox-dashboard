@@ -113,7 +113,7 @@ export const registrationMockHandlers: RequestHandler[] = [
       );
     }
 
-    userSignupState.scheduleTransition(UserSignupPhase.READY);
+    userSignupState.scheduleTransition(UserSignupPhase.READY, 5000);
     return new HttpResponse(null, { status: 200 });
   }),
 

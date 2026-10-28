@@ -263,8 +263,9 @@ export function AnsibleCatalogCard({
       return;
     }
 
-    registerAction(product.type, {
-      buttonLabel,
+    registerAction({
+      product,
+      requiresUserGesture: false,
       canEnable:
         userSignupPhase === UserSignupPhase.READY &&
         canRunAnsibleReadyAction(instanceStatus),
@@ -273,10 +274,9 @@ export function AnsibleCatalogCard({
       },
     });
   }, [
-    buttonLabel,
     handleReadyPrimaryAction,
     instanceStatus,
-    product.type,
+    product,
     registerAction,
     userSignupPhase,
   ]);

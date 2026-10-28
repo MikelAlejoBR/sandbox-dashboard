@@ -1,14 +1,20 @@
 import { createContext, useContext } from "react";
 
-import type { ButtonLabel } from "../../components/Catalog/catalogCardTypes";
-import type { ProductType } from "../../types/product";
+import type { Product, ProductType } from "../../types/product";
 
 /**
  * A catalog primary action that can be resumed after user signup.
  */
 export type SignupAction = {
-  /** Label copied from the catalog card that started signup. */
-  buttonLabel: ButtonLabel;
+  /** The product this action belongs to. */
+  product: Product;
+  /**
+   * Whether the action requires a transient user gesture (e.g.
+   * `window.open`). When `false` the watcher auto-executes the
+   * action after signup, skipping the continuation modal. Defaults
+   * to `true` when not set.
+   */
+  requiresUserGesture?: boolean;
   /**
    * True when the catalog action can run after signup. Simple URL
    * products only need `READY`. AAP and OpenClaw also need their
@@ -39,7 +45,7 @@ export interface SignupActionContextType {
    * signup (NO-OP provider → connected provider) does not lose the
    * pending action.
    */
-  registerAction: (productType: ProductType, action: SignupAction) => void;
+  registerAction: (action: SignupAction) => void;
 }
 
 export const SignupActionContext = createContext<

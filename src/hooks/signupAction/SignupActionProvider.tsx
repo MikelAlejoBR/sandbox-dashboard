@@ -8,7 +8,6 @@ import {
 } from "react";
 
 import { useAuth } from "../../auth/AuthenticatedContext";
-import { ButtonLabel } from "../../components/Catalog/catalogCardTypes";
 import { SignupInProgressModal } from "../../components/Modals";
 import { ProductType } from "../../types/product";
 import logger from "../../utils/logger";
@@ -19,6 +18,7 @@ import {
   isSignupActionInterrupt,
   isUserActivationActive,
   SIGNUP_WATCHER_INTERVAL_MS,
+  SIGNUP_WATCHER_TIMEOUT_MS,
 } from "./signupActionUtils";
 
 /**
@@ -139,11 +139,10 @@ export function AuthenticatedSignupActionProvider({
   );
 
   /**
-   * Holds the button label to set in the signup modal, if necessary.
+   * Holds the product title to set in the signup modal, if
+   * necessary.
    */
-  const [buttonLabel, setButtonLabel] = useState<ButtonLabel>(
-    ButtonLabel.TRY_IT,
-  );
+  const [productTitle, setProductTitle] = useState("");
 
   /**
    * Holds the "can be enabled" state for the action.
@@ -160,6 +159,13 @@ export function AuthenticatedSignupActionProvider({
    * disable their primary buttons until the flow completes.
    */
   const [isSignupInProgress, setSignupInProgress] = useState(false);
+
+  /**
+   * Mirrors {@link isSignupInProgress} as a ref so callbacks can
+   * read the current value without adding the state to their
+   * dependency arrays.
+   */
+  const isSignupInProgressRef = useRef(false);
 
   /**
    * Clears the user signup watcher.
@@ -180,7 +186,7 @@ export function AuthenticatedSignupActionProvider({
   /**
    * Watches the user signup phase, the registered action's readiness
    * and the browser's transient user activation. The watcher keeps
-   * ticking until one of exactly two outcomes:
+   * ticking until one of these outcomes:
    *
    * - **Fast path**: the signup phase reaches `READY`, the product
    *   action is enabled, and the browser gesture is still alive. The
@@ -188,6 +194,9 @@ export function AuthenticatedSignupActionProvider({
    * - **Slow path**: the browser gesture expires before the above
    *   conditions are met. The informative signup modal opens so
    *   the user can trigger the action with a fresh click.
+   * - **Timeout**: for gesture-independent actions only, if the
+   *   watcher exceeds {@link SIGNUP_WATCHER_TIMEOUT_MS} without
+   *   reaching `READY`, the modal opens so the user can cancel.
    *
    * The watcher never stops early when only some conditions are met.
    * This avoids a deferred state where the action is pending but
@@ -195,32 +204,67 @@ export function AuthenticatedSignupActionProvider({
    */
   const startWatcher = useCallback(() => {
     clearWatcher();
+    const startedAt = Date.now();
 
     const tick = () => {
       const phase = userSignupPhaseRef.current;
+      const action = getPendingAction();
+      const needsGesture = action?.requiresUserGesture !== false;
       const isActive = isUserActivationActive();
 
-      // When the gesture window expires, stop the watcher and open
-      // the modal. The modal's Continue button gives the user a
-      // fresh gesture when they're ready.
-      if (!isActive) {
+      // When the gesture window expires and the action requires
+      // one (e.g. window.open), stop the watcher and open the
+      // modal. The modal's Continue button gives the user a
+      // fresh gesture when they're ready. Actions that do not
+      // need a gesture (e.g. AAP/OpenClaw provisioning) skip
+      // the modal and keep waiting for auto-execution.
+      if (!isActive && needsGesture) {
         clearWatcher();
         setSignupModalOpen(true);
         return;
       }
 
-      // All three conditions met while the gesture is alive:
-      // execute the action immediately.
-      const action = getPendingAction();
+      // When signup is READY and the action is gesture-
+      // independent but still disabled (canEnable is false),
+      // fall through to the modal so the user has a
+      // cancellation path. Without this exit the watcher
+      // would tick indefinitely, keeping catalog buttons
+      // disabled. If the action later enables (via
+      // registerAction), the watcher is restarted.
+      if (
+        phase === UserSignupPhase.READY &&
+        !needsGesture &&
+        !action?.canEnable
+      ) {
+        clearWatcher();
+        setSignupModalOpen(true);
+        return;
+      }
+
+      // All conditions met: execute the action immediately.
       if (phase === UserSignupPhase.READY && action?.canEnable) {
         clearWatcher();
         action.onReady();
+        isSignupInProgressRef.current = false;
         setSignupInProgress(false);
         return;
       }
 
-      // Gesture is alive but signup or provider not ready yet.
-      // Keep ticking.
+      // Bounded exit for gesture-independent actions: when
+      // the watcher has been running longer than the timeout
+      // without reaching READY, open the modal so the user
+      // can cancel. Gesture-dependent actions are unaffected
+      // because exit 1 above handles them.
+      if (
+        !needsGesture &&
+        Date.now() - startedAt >= SIGNUP_WATCHER_TIMEOUT_MS
+      ) {
+        clearWatcher();
+        setSignupModalOpen(true);
+        return;
+      }
+
+      // Signup or provider not ready yet. Keep ticking.
     };
 
     intervalRef.current = setInterval(tick, SIGNUP_WATCHER_INTERVAL_MS);
@@ -228,28 +272,45 @@ export function AuthenticatedSignupActionProvider({
   }, [clearWatcher, getPendingAction]);
 
   /**
-   * Copies the action's display fields into React state so the modal
-   * re-renders with the right label and enablement.
+   * Copies the action's display fields into React state so the
+   * modal re-renders with the right title and enablement.
    */
   const applyAction = useCallback((action: SignupAction) => {
-    setButtonLabel(action.buttonLabel);
+    setProductTitle(action.product.title);
     setCanEnable(action.canEnable);
   }, []);
 
   /**
-   * Registers an action for a given product type. If the user has
-   * already clicked a button while we are registering the action, we
-   * set it as the primary pending action to execute.
+   * Registers an action for the product in the given action. If the
+   * user has already clicked a button for this product, we set it
+   * as the primary pending action to execute.
    */
   const registerAction = useCallback(
-    (productType: ProductType, action: SignupAction) => {
-      slotsRef.current.set(productType, action);
+    (action: SignupAction) => {
+      slotsRef.current.set(action.product.type, action);
 
-      if (pendingProductTypeRef.current === productType) {
+      if (pendingProductTypeRef.current === action.product.type) {
         applyAction(action);
+
+        // When signup is in progress, the watcher has stopped
+        // (e.g. the modal opened because the gesture expired
+        // before this action was registered), and the action
+        // is now enabled, close the modal and restart the
+        // watcher so it can auto-execute. When canEnable is
+        // still false, the modal stays open (applyAction
+        // above already updated its state) and a restart
+        // would just re-open it on the next tick.
+        if (
+          isSignupInProgressRef.current &&
+          intervalRef.current === null &&
+          action.canEnable
+        ) {
+          setSignupModalOpen(false);
+          startWatcher();
+        }
       }
     },
-    [applyAction],
+    [applyAction, startWatcher],
   );
 
   /**
@@ -274,6 +335,7 @@ export function AuthenticatedSignupActionProvider({
 
       // Mark signup as in progress so that cards disable their
       // buttons.
+      isSignupInProgressRef.current = true;
       setSignupInProgress(true);
 
       // Sign the user up.
@@ -368,6 +430,7 @@ export function AuthenticatedSignupActionProvider({
       )
     ) {
       setSignupModalOpen(false);
+      isSignupInProgressRef.current = false;
       setSignupInProgress(false);
       clearWatcher();
     }
@@ -385,6 +448,7 @@ export function AuthenticatedSignupActionProvider({
    */
   const closeModal = useCallback(() => {
     setSignupModalOpen(false);
+    isSignupInProgressRef.current = false;
     setSignupInProgress(false);
   }, []);
 
@@ -397,6 +461,7 @@ export function AuthenticatedSignupActionProvider({
     }
 
     setSignupModalOpen(false);
+    isSignupInProgressRef.current = false;
     setSignupInProgress(false);
     getPendingAction()?.onReady();
   }, [canEnable, getPendingAction]);
@@ -414,7 +479,7 @@ export function AuthenticatedSignupActionProvider({
       <SignupInProgressModal
         isOpen={isSignupModalOpen}
         onClose={closeModal}
-        buttonLabel={buttonLabel}
+        productTitle={productTitle}
         isActionEnabled={canEnable}
         onContinue={onContinue}
       />

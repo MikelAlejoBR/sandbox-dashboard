@@ -12,8 +12,7 @@ import {
   AuthenticatedContext,
   type AuthenticatedContextValue,
 } from "../../../auth/AuthenticatedContext";
-import { ButtonLabel } from "../../../components/Catalog/catalogCardTypes";
-import { ProductType } from "../../../types/product";
+import { type Product, ProductType } from "../../../types/product";
 import { NotificationProvider } from "../../NotificationProvider";
 import { UserContext, type UserContextType } from "../../UserContext";
 import { UserSignupPhase } from "../../userSignupPhase";
@@ -23,7 +22,10 @@ import {
   SignupActionProvider,
   UnauthenticatedSignupActionProvider,
 } from "../SignupActionProvider";
-import { SIGNUP_WATCHER_INTERVAL_MS } from "../signupActionUtils";
+import {
+  SIGNUP_WATCHER_INTERVAL_MS,
+  SIGNUP_WATCHER_TIMEOUT_MS,
+} from "../signupActionUtils";
 import { mockUserActivation } from "./userActivationTestHelpers";
 
 // ── Fixtures ──────────────────────────────────────────────
@@ -41,6 +43,30 @@ const authenticatedAuth: AuthenticatedContextValue = {
 const unauthenticatedAuth: AuthenticatedContextValue = {
   authenticated: false,
   login: vi.fn(),
+};
+
+const openshiftProduct: Product = {
+  type: ProductType.OPENSHIFT_CONSOLE,
+  title: "OpenShift",
+  image: "openshift.svg",
+  description: [],
+  landingPage: {},
+};
+
+const aapProduct: Product = {
+  type: ProductType.AAP,
+  title: "Ansible Automation Platform",
+  image: "ansible.svg",
+  description: [],
+  landingPage: {},
+};
+
+const openclawProduct: Product = {
+  type: ProductType.OPENCLAW,
+  title: "OpenClaw",
+  image: "openclaw.svg",
+  description: [],
+  landingPage: {},
 };
 
 // ── Helpers ───────────────────────────────────────────────
@@ -62,9 +88,9 @@ function makeUserContext(
  * via test IDs and buttons.
  */
 function ContextConsumer({
-  productType = ProductType.OPENSHIFT_CONSOLE,
+  product = openshiftProduct,
 }: {
-  productType?: ProductType;
+  product?: Product;
 }) {
   const { isSignupInProgress, signupAndRun, registerAction } =
     useSignupAction();
@@ -74,15 +100,15 @@ function ContextConsumer({
       <span data-testid="in-progress">{String(isSignupInProgress)}</span>
       <button
         data-testid="signup-and-run"
-        onClick={() => signupAndRun(productType)}
+        onClick={() => signupAndRun(product.type)}
       >
         signupAndRun
       </button>
       <button
         data-testid="register-action"
         onClick={() =>
-          registerAction(productType, {
-            buttonLabel: ButtonLabel.TRY_IT,
+          registerAction({
+            product,
             canEnable: true,
             onReady: () => {},
           })
@@ -256,7 +282,6 @@ describe("AuthenticatedSignupActionProvider", () => {
   describe("fast path", () => {
     it("executes the action when READY, canEnable and gesture are all met", async () => {
       const onReady = vi.fn();
-      const productType = ProductType.OPENSHIFT_CONSOLE;
 
       function FastPathConsumer() {
         const { signupAndRun, registerAction } = useSignupAction();
@@ -266,8 +291,8 @@ describe("AuthenticatedSignupActionProvider", () => {
             <button
               data-testid="register"
               onClick={() =>
-                registerAction(productType, {
-                  buttonLabel: ButtonLabel.TRY_IT,
+                registerAction({
+                  product: openshiftProduct,
                   canEnable: true,
                   onReady,
                 })
@@ -275,7 +300,7 @@ describe("AuthenticatedSignupActionProvider", () => {
             />
             <button
               data-testid="run"
-              onClick={() => signupAndRun(productType)}
+              onClick={() => signupAndRun(openshiftProduct.type)}
             />
           </div>
         );
@@ -308,7 +333,6 @@ describe("AuthenticatedSignupActionProvider", () => {
 
     it("keeps ticking when READY but canEnable is false", async () => {
       const onReady = vi.fn();
-      const productType = ProductType.OPENSHIFT_CONSOLE;
 
       function DelayedEnableConsumer() {
         const { signupAndRun, registerAction } = useSignupAction();
@@ -318,8 +342,8 @@ describe("AuthenticatedSignupActionProvider", () => {
             <button
               data-testid="register-disabled"
               onClick={() =>
-                registerAction(productType, {
-                  buttonLabel: ButtonLabel.TRY_IT,
+                registerAction({
+                  product: openshiftProduct,
                   canEnable: false,
                   onReady,
                 })
@@ -328,8 +352,8 @@ describe("AuthenticatedSignupActionProvider", () => {
             <button
               data-testid="register-enabled"
               onClick={() =>
-                registerAction(productType, {
-                  buttonLabel: ButtonLabel.TRY_IT,
+                registerAction({
+                  product: openshiftProduct,
                   canEnable: true,
                   onReady,
                 })
@@ -337,7 +361,7 @@ describe("AuthenticatedSignupActionProvider", () => {
             />
             <button
               data-testid="run"
-              onClick={() => signupAndRun(productType)}
+              onClick={() => signupAndRun(openshiftProduct.type)}
             />
           </div>
         );
@@ -390,7 +414,7 @@ describe("AuthenticatedSignupActionProvider", () => {
 
       expect(
         screen.getByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).toBeInTheDocument();
     });
@@ -403,7 +427,6 @@ describe("AuthenticatedSignupActionProvider", () => {
       }));
 
       const onReady = vi.fn();
-      const productType = ProductType.OPENSHIFT_CONSOLE;
 
       function SlowPathConsumer() {
         const { signupAndRun, registerAction } = useSignupAction();
@@ -413,8 +436,8 @@ describe("AuthenticatedSignupActionProvider", () => {
             <button
               data-testid="register"
               onClick={() =>
-                registerAction(productType, {
-                  buttonLabel: ButtonLabel.TRY_IT,
+                registerAction({
+                  product: openshiftProduct,
                   canEnable: false,
                   onReady,
                 })
@@ -422,7 +445,7 @@ describe("AuthenticatedSignupActionProvider", () => {
             />
             <button
               data-testid="run"
-              onClick={() => signupAndRun(productType)}
+              onClick={() => signupAndRun(openshiftProduct.type)}
             />
           </div>
         );
@@ -446,7 +469,7 @@ describe("AuthenticatedSignupActionProvider", () => {
       // Modal should not be open yet — gesture is still active.
       expect(
         screen.queryByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).not.toBeInTheDocument();
 
@@ -460,7 +483,7 @@ describe("AuthenticatedSignupActionProvider", () => {
       // Modal should open as the fallback.
       expect(
         screen.getByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).toBeInTheDocument();
       expect(onReady).not.toHaveBeenCalled();
@@ -481,9 +504,415 @@ describe("AuthenticatedSignupActionProvider", () => {
 
       expect(
         screen.getByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).toBeInTheDocument();
+    });
+
+    it("treats a missing User Activation API as the slow path only for gesture-requiring actions", async () => {
+      mockUserActivation(undefined);
+
+      const onReady = vi.fn();
+
+      function NoGestureConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register"
+              onClick={() =>
+                registerAction({
+                  product: aapProduct,
+                  requiresUserGesture: false,
+                  canEnable: true,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(aapProduct.type)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <NoGestureConsumer />,
+      );
+
+      fireEvent.click(screen.getByTestId("register"));
+      fireEvent.click(screen.getByTestId("run"));
+
+      // The gesture is missing but the action does not require
+      // one, so the watcher should keep ticking — no modal.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).not.toBeInTheDocument();
+
+      // Once signup completes, the action fires automatically.
+      await act(async () => {
+        setPhase(UserSignupPhase.READY);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("auto-execute (no gesture required)", () => {
+    it("auto-executes the action without a modal when gesture expires", async () => {
+      mockUserActivation(false);
+
+      const onReady = vi.fn();
+
+      function AutoExecConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register"
+              onClick={() =>
+                registerAction({
+                  product: aapProduct,
+                  requiresUserGesture: false,
+                  canEnable: true,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(aapProduct.type)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <AutoExecConsumer />,
+      );
+
+      fireEvent.click(screen.getByTestId("register"));
+      fireEvent.click(screen.getByTestId("run"));
+
+      // Gesture is already expired but the action does not
+      // require one. The modal should not appear.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).not.toBeInTheDocument();
+
+      // Signup completes — the action auto-executes.
+      await act(async () => {
+        setPhase(UserSignupPhase.READY);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+    });
+
+    it("opens the modal when READY but gesture-independent action stays disabled", async () => {
+      mockUserActivation(false);
+
+      const onReady = vi.fn();
+
+      function AutoExecDelayedConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register-disabled"
+              onClick={() =>
+                registerAction({
+                  product: openclawProduct,
+                  requiresUserGesture: false,
+                  canEnable: false,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="register-enabled"
+              onClick={() =>
+                registerAction({
+                  product: openclawProduct,
+                  requiresUserGesture: false,
+                  canEnable: true,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(openclawProduct.type)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <AutoExecDelayedConsumer />,
+      );
+
+      fireEvent.click(screen.getByTestId("register-disabled"));
+      fireEvent.click(screen.getByTestId("run"));
+
+      // Phase reaches READY but canEnable is false. The
+      // watcher opens the modal as a cancellation path so
+      // the user is not stuck with disabled catalog buttons.
+      await act(async () => {
+        setPhase(UserSignupPhase.READY);
+      });
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).toBeInTheDocument();
+
+      // The provider re-registers with canEnable: true.
+      // registerAction closes the modal and restarts the
+      // watcher, which auto-executes the action.
+      fireEvent.click(screen.getByTestId("register-enabled"));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("auto-executes when a late registerAction matches the pending product", async () => {
+      mockUserActivation(false);
+
+      const onReady = vi.fn();
+
+      function LateRegisterConsumer() {
+        const { isSignupInProgress, signupAndRun, registerAction } =
+          useSignupAction();
+
+        return (
+          <div>
+            <span data-testid="in-progress">{String(isSignupInProgress)}</span>
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(aapProduct.type)}
+            />
+            <button
+              data-testid="register"
+              onClick={() =>
+                registerAction({
+                  product: aapProduct,
+                  requiresUserGesture: false,
+                  canEnable: true,
+                  onReady,
+                })
+              }
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <LateRegisterConsumer />,
+      );
+
+      // Start signup before registering the action. The
+      // watcher defaults needsGesture to true (action is
+      // undefined) so the expired gesture opens the modal.
+      fireEvent.click(screen.getByTestId("run"));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(
+        screen.getByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).toBeInTheDocument();
+
+      // Phase reaches READY.
+      await act(async () => {
+        setPhase(UserSignupPhase.READY);
+      });
+
+      // Late registration: the card mounts and registers
+      // its gesture-independent action with canEnable true.
+      // registerAction closes the modal and restarts the
+      // watcher, which auto-executes immediately.
+      fireEvent.click(screen.getByTestId("register"));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(onReady).toHaveBeenCalledTimes(1);
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId("in-progress").textContent).toBe("false");
+    });
+
+    it("opens the modal when a gesture-independent action exceeds the watcher timeout", async () => {
+      mockUserActivation(false);
+
+      const onReady = vi.fn();
+
+      function TimeoutConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register"
+              onClick={() =>
+                registerAction({
+                  product: aapProduct,
+                  requiresUserGesture: false,
+                  canEnable: false,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(aapProduct.type)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <TimeoutConsumer />,
+      );
+
+      fireEvent.click(screen.getByTestId("register"));
+      fireEvent.click(screen.getByTestId("run"));
+
+      // Move to SIGNING_UP to simulate a stuck signup.
+      await act(async () => {
+        setPhase(UserSignupPhase.SIGNING_UP);
+      });
+
+      // Advance just before the timeout — no modal yet.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(
+          SIGNUP_WATCHER_TIMEOUT_MS - SIGNUP_WATCHER_INTERVAL_MS,
+        );
+      });
+
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).not.toBeInTheDocument();
+      expect(onReady).not.toHaveBeenCalled();
+
+      // One more tick exceeds the timeout — modal opens.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(SIGNUP_WATCHER_INTERVAL_MS);
+      });
+
+      expect(
+        screen.getByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).toBeInTheDocument();
+      expect(onReady).not.toHaveBeenCalled();
+    });
+
+    it("does not apply the timeout to gesture-dependent actions", async () => {
+      const onReady = vi.fn();
+
+      function GestureConsumer() {
+        const { signupAndRun, registerAction } = useSignupAction();
+
+        return (
+          <div>
+            <button
+              data-testid="register"
+              onClick={() =>
+                registerAction({
+                  product: openshiftProduct,
+                  canEnable: false,
+                  onReady,
+                })
+              }
+            />
+            <button
+              data-testid="run"
+              onClick={() => signupAndRun(openshiftProduct.type)}
+            />
+          </div>
+        );
+      }
+
+      const { setPhase } = renderAuthenticated(
+        { userSignupPhase: UserSignupPhase.NOT_STARTED },
+        <GestureConsumer />,
+      );
+
+      fireEvent.click(screen.getByTestId("register"));
+      fireEvent.click(screen.getByTestId("run"));
+
+      await act(async () => {
+        setPhase(UserSignupPhase.SIGNING_UP);
+      });
+
+      // The gesture is still active (default mock), so the
+      // watcher keeps ticking. Advancing past the timeout
+      // should NOT open the modal for gesture-dependent
+      // actions.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(
+          SIGNUP_WATCHER_TIMEOUT_MS + SIGNUP_WATCHER_INTERVAL_MS,
+        );
+      });
+
+      expect(
+        screen.queryByRole("dialog", {
+          name: "Signup in progress",
+        }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -504,7 +933,7 @@ describe("AuthenticatedSignupActionProvider", () => {
 
       expect(
         screen.getByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).toBeInTheDocument();
 
@@ -516,7 +945,7 @@ describe("AuthenticatedSignupActionProvider", () => {
 
       expect(
         screen.queryByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).not.toBeInTheDocument();
       expect(screen.getByTestId("in-progress").textContent).toBe("false");
@@ -540,7 +969,7 @@ describe("AuthenticatedSignupActionProvider", () => {
       // hasProgressedPastNotStarted is false.
       expect(
         screen.getByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).toBeInTheDocument();
     });
@@ -628,7 +1057,6 @@ describe("AuthenticatedSignupActionProvider", () => {
       mockUserActivation(false);
 
       const onReady = vi.fn();
-      const productType = ProductType.OPENSHIFT_CONSOLE;
 
       function ModalConsumer() {
         const { signupAndRun, registerAction } = useSignupAction();
@@ -638,8 +1066,8 @@ describe("AuthenticatedSignupActionProvider", () => {
             <button
               data-testid="register-disabled"
               onClick={() =>
-                registerAction(productType, {
-                  buttonLabel: ButtonLabel.TRY_IT,
+                registerAction({
+                  product: openshiftProduct,
                   canEnable: false,
                   onReady,
                 })
@@ -648,8 +1076,8 @@ describe("AuthenticatedSignupActionProvider", () => {
             <button
               data-testid="register-enabled"
               onClick={() =>
-                registerAction(productType, {
-                  buttonLabel: ButtonLabel.TRY_IT,
+                registerAction({
+                  product: openshiftProduct,
                   canEnable: true,
                   onReady,
                 })
@@ -657,7 +1085,7 @@ describe("AuthenticatedSignupActionProvider", () => {
             />
             <button
               data-testid="run"
-              onClick={() => signupAndRun(productType)}
+              onClick={() => signupAndRun(openshiftProduct.type)}
             />
           </div>
         );
@@ -678,14 +1106,14 @@ describe("AuthenticatedSignupActionProvider", () => {
 
       // Modal should be open.
       const dialog = screen.getByRole("dialog", {
-        name: "User signup is in progress",
+        name: "Signup in progress",
       });
       expect(dialog).toBeInTheDocument();
 
       // The continue button should be disabled because canEnable
       // is false.
       const continueButton = within(dialog).getByRole("button", {
-        name: /Try it/,
+        name: /Try OpenShift/,
       });
       expect(continueButton).toBeDisabled();
 
@@ -698,11 +1126,17 @@ describe("AuthenticatedSignupActionProvider", () => {
 
       await waitFor(() => {
         expect(
-          within(dialog).getByRole("button", { name: /Try it/ }),
+          within(dialog).getByRole("button", {
+            name: /Try OpenShift/,
+          }),
         ).toBeEnabled();
       });
 
-      await user.click(within(dialog).getByRole("button", { name: /Try it/ }));
+      await user.click(
+        within(dialog).getByRole("button", {
+          name: /Try OpenShift/,
+        }),
+      );
 
       expect(onReady).toHaveBeenCalledTimes(1);
     });
@@ -725,7 +1159,7 @@ describe("AuthenticatedSignupActionProvider", () => {
 
       expect(
         screen.getByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).toBeInTheDocument();
 
@@ -734,7 +1168,7 @@ describe("AuthenticatedSignupActionProvider", () => {
 
       expect(
         screen.queryByRole("dialog", {
-          name: "User signup is in progress",
+          name: "Signup in progress",
         }),
       ).not.toBeInTheDocument();
       expect(screen.getByTestId("in-progress").textContent).toBe("false");
