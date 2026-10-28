@@ -4,6 +4,14 @@ import { UserSignupPhase } from "../userSignupPhase";
 export const SIGNUP_WATCHER_INTERVAL_MS = 50;
 
 /**
+ * Maximum time (ms) the watcher runs for gesture-independent
+ * actions before falling through to the modal. This prevents
+ * catalog buttons from staying disabled indefinitely when
+ * signup is stuck in a non-READY phase (e.g. SIGNING_UP).
+ */
+export const SIGNUP_WATCHER_TIMEOUT_MS = 30_000;
+
+/**
  * Returns whether the current browsing context still has a transient user
  * activation. A missing User Activation API is treated as inactive so the
  * slow path (continuation modal) is used instead of `window.open`.

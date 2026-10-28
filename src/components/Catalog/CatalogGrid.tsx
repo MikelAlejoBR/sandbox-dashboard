@@ -111,8 +111,9 @@ function CatalogGridCards() {
       }
 
       const productToOpen = product;
-      registerAction(productToOpen.type, {
-        buttonLabel: ButtonLabel.TRY_IT,
+      registerAction({
+        product: productToOpen,
+        requiresUserGesture: true,
         canEnable: userSignupPhase === UserSignupPhase.READY,
         onReady: () => {
           openProductURL(productToOpen);

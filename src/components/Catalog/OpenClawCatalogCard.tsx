@@ -234,8 +234,9 @@ export function OpenClawCatalogCard({
       return;
     }
 
-    registerAction(product.type, {
-      buttonLabel,
+    registerAction({
+      product,
+      requiresUserGesture: false,
       canEnable:
         userSignupPhase === UserSignupPhase.READY &&
         canRunOpenClawReadyAction(status),
@@ -244,9 +245,8 @@ export function OpenClawCatalogCard({
       },
     });
   }, [
-    buttonLabel,
     handleReadyPrimaryAction,
-    product.type,
+    product,
     registerAction,
     status,
     userSignupPhase,
