@@ -137,9 +137,11 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.useRealTimers();
   server.resetHandlers();
   document.cookie =
     "cmapi_cookie_privacy=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+  document.getElementById("dpal")?.remove();
 });
 
 afterAll(() => server.close());
@@ -554,6 +556,136 @@ describe("AnalyticsProvider", () => {
     expect(marketoCalls).toHaveLength(0);
 
     fetchSpy.mockRestore();
+  });
+});
+
+describe("AnalyticsProvider consent granting", () => {
+  it("arms analytics when the TrustArc cookie appears without a message event", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    document.cookie =
+      "cmapi_cookie_privacy=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+    (AnalyticsBrowser.load as ReturnType<typeof vi.fn>).mockReturnValue({
+      track: vi.fn(),
+      identify: vi.fn(),
+      group: vi.fn(),
+      reset: vi.fn(),
+    });
+
+    server.use(
+      http.get(
+        "https://registration.example.com/api/v1/analytics/segment-write-key",
+        () => HttpResponse.text("key-after-accept"),
+      ),
+    );
+
+    renderProvider();
+
+    expect(AnalyticsBrowser.load).not.toHaveBeenCalled();
+    expect(document.getElementById("dpal")).toBeNull();
+
+    // Simulate TrustArc writing the cookie on Accept all without a
+    // reliable window.postMessage for our listener.
+    document.cookie = "cmapi_cookie_privacy=permit 1,2,3";
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    await waitFor(() => {
+      expect(document.getElementById("dpal")).not.toBeNull();
+      expect(AnalyticsBrowser.load).toHaveBeenCalledWith({
+        writeKey: "key-after-accept",
+      });
+    });
+
+    const dpal = document.getElementById("dpal") as HTMLScriptElement;
+    expect(dpal.src).toContain("https://www.redhat.com/ma/dpal.js");
+
+    vi.useRealTimers();
+  });
+
+  it("keeps polling until the TrustArc cookie appears", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+
+    document.cookie =
+      "cmapi_cookie_privacy=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+    (AnalyticsBrowser.load as ReturnType<typeof vi.fn>).mockReturnValue({
+      track: vi.fn(),
+      identify: vi.fn(),
+      group: vi.fn(),
+      reset: vi.fn(),
+    });
+
+    server.use(
+      http.get(
+        "https://registration.example.com/api/v1/analytics/segment-write-key",
+        () => HttpResponse.text("key-late-accept"),
+      ),
+    );
+
+    renderProvider();
+
+    // A missing cookie is not a rejection. Advance well past a minute to
+    // show polling does not give up while the visitor has not accepted.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(90_000);
+    });
+
+    expect(document.getElementById("dpal")).toBeNull();
+    expect(AnalyticsBrowser.load).not.toHaveBeenCalled();
+
+    document.cookie = "cmapi_cookie_privacy=permit 1,2,3";
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500);
+    });
+
+    await waitFor(() => {
+      expect(document.getElementById("dpal")).not.toBeNull();
+      expect(AnalyticsBrowser.load).toHaveBeenCalledWith({
+        writeKey: "key-late-accept",
+      });
+    });
+
+    vi.useRealTimers();
+  });
+
+  it("arms analytics on focus after the TrustArc cookie is written", async () => {
+    document.cookie =
+      "cmapi_cookie_privacy=; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+
+    (AnalyticsBrowser.load as ReturnType<typeof vi.fn>).mockReturnValue({
+      track: vi.fn(),
+      identify: vi.fn(),
+      group: vi.fn(),
+      reset: vi.fn(),
+    });
+
+    server.use(
+      http.get(
+        "https://registration.example.com/api/v1/analytics/segment-write-key",
+        () => HttpResponse.text("key-on-focus"),
+      ),
+    );
+
+    renderProvider();
+    expect(document.getElementById("dpal")).toBeNull();
+
+    document.cookie = "cmapi_cookie_privacy=permit 1,2,3";
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+
+    await waitFor(() => {
+      expect(document.getElementById("dpal")).not.toBeNull();
+      expect(AnalyticsBrowser.load).toHaveBeenCalledWith({
+        writeKey: "key-on-focus",
+      });
+    });
   });
 });
 
