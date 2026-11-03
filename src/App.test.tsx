@@ -85,7 +85,6 @@ test("renders without crashing in dev bypass mode", async () => {
   );
 
   const fakeAuthenticatedContextValue: AuthenticatedUser = {
-    authenticated: true,
     token: "dev-fake-token",
     givenName: "Developer",
     familyName: "Sandbox",

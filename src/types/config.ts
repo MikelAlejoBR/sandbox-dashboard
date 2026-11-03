@@ -1,6 +1,6 @@
 /**
- * Represents the bits of configuration in the UI that are public for any
- * user, including unauthenticated ones.
+ * Represents the UI configuration fetched without a user token. The
+ * dashboard uses it to decide which product tiles to show.
  */
 export interface PublicUIConfig {
   disabledIntegrations: string[];

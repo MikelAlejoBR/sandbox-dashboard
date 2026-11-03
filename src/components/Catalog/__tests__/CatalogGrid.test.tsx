@@ -49,7 +49,6 @@ function makeContext(
 }
 
 const authenticatedUser: AuthenticatedContextValue = {
-  authenticated: true,
   email: "johndoe@redhat.com",
   familyName: "Doe",
   givenName: "John",

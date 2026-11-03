@@ -9,7 +9,6 @@ function makeProduct(type: ProductType): Product {
     title: type,
     image: "",
     description: [],
-    landingPage: {},
   };
 }
 

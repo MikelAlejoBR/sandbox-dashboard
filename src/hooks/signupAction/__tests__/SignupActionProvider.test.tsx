@@ -8,20 +8,12 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import {
-  AuthenticatedContext,
-  type AuthenticatedContextValue,
-} from "../../../auth/AuthenticatedContext";
 import { type Product, ProductType } from "../../../types/product";
 import { NotificationProvider } from "../../NotificationProvider";
 import { UserContext, type UserContextType } from "../../UserContext";
 import { UserSignupPhase } from "../../userSignupPhase";
 import { useSignupAction } from "../SignupActionContext";
-import {
-  AuthenticatedSignupActionProvider,
-  SignupActionProvider,
-  UnauthenticatedSignupActionProvider,
-} from "../SignupActionProvider";
+import { SignupActionProvider } from "../SignupActionProvider";
 import {
   SIGNUP_WATCHER_INTERVAL_MS,
   SIGNUP_WATCHER_TIMEOUT_MS,
@@ -30,27 +22,11 @@ import { mockUserActivation } from "./userActivationTestHelpers";
 
 // ── Fixtures ──────────────────────────────────────────────
 
-const authenticatedAuth: AuthenticatedContextValue = {
-  authenticated: true,
-  email: "john@example.com",
-  familyName: "Doe",
-  givenName: "John",
-  logout: vi.fn(),
-  token: "mock-token",
-  username: "johndoe",
-};
-
-const unauthenticatedAuth: AuthenticatedContextValue = {
-  authenticated: false,
-  login: vi.fn(),
-};
-
 const openshiftProduct: Product = {
   type: ProductType.OPENSHIFT_CONSOLE,
   title: "OpenShift",
   image: "openshift.svg",
   description: [],
-  landingPage: {},
 };
 
 const aapProduct: Product = {
@@ -58,7 +34,6 @@ const aapProduct: Product = {
   title: "Ansible Automation Platform",
   image: "ansible.svg",
   description: [],
-  landingPage: {},
 };
 
 const openclawProduct: Product = {
@@ -66,7 +41,6 @@ const openclawProduct: Product = {
   title: "OpenClaw",
   image: "openclaw.svg",
   description: [],
-  landingPage: {},
 };
 
 // ── Helpers ───────────────────────────────────────────────
@@ -121,8 +95,8 @@ function ContextConsumer({
 }
 
 /**
- * Renders the {@link AuthenticatedSignupActionProvider} wrapped in
- * the required contexts.
+ * Renders the {@link SignupActionProvider} wrapped in the required
+ * contexts.
  *
  * Returns a `setPhase` helper that rerenders the tree with a new
  * user signup phase.
@@ -135,13 +109,11 @@ function renderAuthenticated(
 
   const ui = (ctx: UserContextType) => (
     <NotificationProvider>
-      <AuthenticatedContext.Provider value={authenticatedAuth}>
-        <UserContext.Provider value={ctx}>
-          <AuthenticatedSignupActionProvider>
-            {children ?? <ContextConsumer />}
-          </AuthenticatedSignupActionProvider>
-        </UserContext.Provider>
-      </AuthenticatedContext.Provider>
+      <UserContext.Provider value={ctx}>
+        <SignupActionProvider>
+          {children ?? <ContextConsumer />}
+        </SignupActionProvider>
+      </UserContext.Provider>
     </NotificationProvider>
   );
 
@@ -162,110 +134,14 @@ function renderAuthenticated(
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
   mockUserActivation(true);
-  sessionStorage.clear();
 });
 
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  sessionStorage.clear();
 });
-
-// ── UnauthenticatedSignupActionProvider ───────────────────
-
-describe("UnauthenticatedSignupActionProvider", () => {
-  it("saves the product type to sessionStorage and calls login", () => {
-    const login = vi.fn();
-
-    render(
-      <UnauthenticatedSignupActionProvider login={login}>
-        <ContextConsumer />
-      </UnauthenticatedSignupActionProvider>,
-    );
-
-    screen.getByTestId("signup-and-run").click();
-
-    expect(sessionStorage.getItem("pending-signup-intent-key")).toBe(
-      ProductType.OPENSHIFT_CONSOLE,
-    );
-    expect(login).toHaveBeenCalledTimes(1);
-  });
-
-  it("still calls login when sessionStorage.setItem throws", () => {
-    const login = vi.fn();
-    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-      throw new Error("QuotaExceededError");
-    });
-
-    render(
-      <UnauthenticatedSignupActionProvider login={login}>
-        <ContextConsumer />
-      </UnauthenticatedSignupActionProvider>,
-    );
-
-    screen.getByTestId("signup-and-run").click();
-
-    expect(login).toHaveBeenCalledTimes(1);
-  });
-
-  it("provides isSignupInProgress as false", () => {
-    render(
-      <UnauthenticatedSignupActionProvider login={vi.fn()}>
-        <ContextConsumer />
-      </UnauthenticatedSignupActionProvider>,
-    );
-
-    expect(screen.getByTestId("in-progress").textContent).toBe("false");
-  });
-
-  it("provides a no-op registerAction", () => {
-    render(
-      <UnauthenticatedSignupActionProvider login={vi.fn()}>
-        <ContextConsumer />
-      </UnauthenticatedSignupActionProvider>,
-    );
-
-    // Should not throw.
-    screen.getByTestId("register-action").click();
-  });
-});
-
-// ── SignupActionProvider (routing) ────────────────────────
 
 describe("SignupActionProvider", () => {
-  it("renders the unauthenticated provider when not authenticated", () => {
-    const login = vi.fn();
-
-    render(
-      <NotificationProvider>
-        <AuthenticatedContext.Provider
-          value={{ ...unauthenticatedAuth, login }}
-        >
-          <UserContext.Provider
-            value={makeUserContext({
-              userSignupPhase: UserSignupPhase.UNAUTHENTICATED,
-            })}
-          >
-            <SignupActionProvider>
-              <ContextConsumer />
-            </SignupActionProvider>
-          </UserContext.Provider>
-        </AuthenticatedContext.Provider>
-      </NotificationProvider>,
-    );
-
-    screen.getByTestId("signup-and-run").click();
-
-    expect(login).toHaveBeenCalledTimes(1);
-    expect(sessionStorage.getItem("pending-signup-intent-key")).toBe(
-      ProductType.OPENSHIFT_CONSOLE,
-    );
-  });
-});
-
-// ── AuthenticatedSignupActionProvider ─────────────────────
-
-describe("AuthenticatedSignupActionProvider", () => {
   describe("signupAndRun", () => {
     it("calls signupUser and sets isSignupInProgress to true", async () => {
       const { userCtx } = renderAuthenticated();
@@ -972,80 +848,6 @@ describe("AuthenticatedSignupActionProvider", () => {
           name: "Signup in progress",
         }),
       ).toBeInTheDocument();
-    });
-  });
-
-  describe("sessionStorage recovery", () => {
-    it("recovers the intent and calls signupAndRun on NOT_STARTED", async () => {
-      sessionStorage.setItem(
-        "pending-signup-intent-key",
-        ProductType.OPENSHIFT_CONSOLE,
-      );
-
-      const { userCtx } = renderAuthenticated({
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-      });
-
-      // The effect fires on mount and should call signupUser.
-      await waitFor(() => {
-        expect(userCtx.signupUser).toHaveBeenCalledTimes(1);
-      });
-
-      // The intent should be consumed from sessionStorage.
-      expect(sessionStorage.getItem("pending-signup-intent-key")).toBeNull();
-    });
-
-    it("recovers the intent when phase is READY", async () => {
-      sessionStorage.setItem(
-        "pending-signup-intent-key",
-        ProductType.OPENSHIFT_CONSOLE,
-      );
-
-      renderAuthenticated({
-        userSignupPhase: UserSignupPhase.READY,
-      });
-
-      // The intent should be consumed.
-      await waitFor(() => {
-        expect(sessionStorage.getItem("pending-signup-intent-key")).toBeNull();
-      });
-    });
-
-    it("ignores the intent when phase is not NOT_STARTED or READY", () => {
-      sessionStorage.setItem(
-        "pending-signup-intent-key",
-        ProductType.OPENSHIFT_CONSOLE,
-      );
-
-      const { userCtx } = renderAuthenticated({
-        userSignupPhase: UserSignupPhase.PROVISIONING,
-      });
-
-      expect(userCtx.signupUser).not.toHaveBeenCalled();
-      expect(sessionStorage.getItem("pending-signup-intent-key")).toBe(
-        ProductType.OPENSHIFT_CONSOLE,
-      );
-    });
-
-    it("ignores an invalid ProductType in sessionStorage", () => {
-      sessionStorage.setItem("pending-signup-intent-key", "bogus-product");
-
-      const { userCtx } = renderAuthenticated({
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-      });
-
-      expect(userCtx.signupUser).not.toHaveBeenCalled();
-      // The invalid value should still be consumed to prevent
-      // retries.
-      expect(sessionStorage.getItem("pending-signup-intent-key")).toBeNull();
-    });
-
-    it("does nothing when sessionStorage is empty", () => {
-      const { userCtx } = renderAuthenticated({
-        userSignupPhase: UserSignupPhase.NOT_STARTED,
-      });
-
-      expect(userCtx.signupUser).not.toHaveBeenCalled();
     });
   });
 

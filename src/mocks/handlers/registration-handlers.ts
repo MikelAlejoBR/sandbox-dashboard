@@ -20,7 +20,7 @@ import { StateMachine } from "./state-machine";
 const initialState: UserSignupPhase =
   (typeof window !== "undefined"
     ? window.__playwrightOverrides__?.__signup__?.__initialState__
-    : undefined) ?? UserSignupPhase.PENDING_PHONE_VERIFICATION;
+    : undefined) ?? UserSignupPhase.NOT_STARTED;
 
 /**
  * Create the state machine for our requests.
@@ -79,7 +79,6 @@ export const registrationMockHandlers: RequestHandler[] = [
   http.get("*/api/v1/signup", () => {
     const phase = userSignupState.getPhase();
     switch (phase) {
-      case UserSignupPhase.UNAUTHENTICATED:
       case UserSignupPhase.INITIAL_FETCH:
       case UserSignupPhase.NOT_STARTED:
       case UserSignupPhase.SIGNING_UP:

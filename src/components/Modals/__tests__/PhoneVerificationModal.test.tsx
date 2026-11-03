@@ -87,7 +87,8 @@ describe("PhoneVerificationModal", () => {
     renderModal();
 
     await user.click(getCountryCodeInput());
-    await user.type(getCountryCodeInput(), "+34");
+    await user.clear(getCountryCodeInput());
+    await user.paste("+34");
     await user.click(getPhoneNumberInput());
 
     await waitFor(() => {
@@ -110,7 +111,8 @@ describe("PhoneVerificationModal", () => {
     renderModal();
 
     await user.click(getCountryCodeInput());
-    await user.type(getCountryCodeInput(), "+1");
+    await user.clear(getCountryCodeInput());
+    await user.paste("+1");
     await user.click(getPhoneNumberInput());
 
     await waitFor(() => {

@@ -95,11 +95,6 @@ function CatalogGridCards() {
   // of the browser, or show them in the corresponding primary button
   // of the "signup" modal.
   useEffect(() => {
-    // Do not register any actions if the user is unauthenticated.
-    if (userSignupPhase === UserSignupPhase.UNAUTHENTICATED) {
-      return;
-    }
-
     for (const product of enabledProducts) {
       // Skip the AAP and OpenClaw products because their actions get
       // registered in their own cards.
@@ -130,7 +125,6 @@ function CatalogGridCards() {
   const handleOnClickPrimaryButtonSimpleCards = useCallback(
     (product: Product) => {
       switch (userSignupPhase) {
-        case UserSignupPhase.UNAUTHENTICATED:
         case UserSignupPhase.NOT_STARTED:
         case UserSignupPhase.SIGNING_UP:
         case UserSignupPhase.PROVISIONING:

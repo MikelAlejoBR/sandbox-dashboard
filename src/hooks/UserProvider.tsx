@@ -9,8 +9,6 @@ import {
 } from "react";
 
 import { getSignupData, signup } from "../api/registration";
-import { useAuth } from "../auth/AuthenticatedContext";
-import { SESSION_HINT_COOKIE_NAME } from "../auth/initializeKeycloak";
 import { Environment, getConfig } from "../config/config";
 import { MEDIUM_INTERVAL, SHORT_INTERVAL, SUPPORT_EMAIL } from "../const";
 import { ApiError } from "../error/ApiError";
@@ -18,7 +16,6 @@ import { UserFacingError } from "../error/UserFacingError";
 import { type User } from "../types";
 import type { BootstrapData } from "../types/main";
 import { errorMessage } from "../utils/common";
-import { setCookie } from "../utils/cookie-utils";
 import logger from "../utils/logger";
 import {
   mapFetchUserErrorToErrorMessage,
@@ -40,9 +37,6 @@ export function UserProvider({
   const config = getConfig();
   const isProd = config.environment === Environment.PRODUCTION;
   useRecaptcha(isProd);
-
-  // User authentication status.
-  const { authenticated: isUserAuthenticated } = useAuth();
 
   // Grab the notifications' utilities to be able to post toasts if
   // anything goes wrong.
@@ -125,43 +119,6 @@ export function UserProvider({
       updateSignupPhase(
         mapUserStatusToSignupPhase(userSignupPhaseRef.current, result),
       );
-
-      // On a successful fetch, if the user has an end date when their trial
-      // ends, update the login hint cookie's end date to that. That way we
-      // ensure that the user gets kicked back to the landing page where they
-      // will be able to request another trial.
-      //
-      // Otherwise if we kept the cookie with the default setting they would
-      // get redirected to SSO and then back to the landing page, because
-      // their user signup would not be in a "READY" state anyway. And we want
-      // to have a better UX with it.
-      //
-      // In the case that the end date is set in the past the "setCookie"
-      // call would expire the cookie immediately, which is the expected
-      // behavior.
-      if (result?.endDate) {
-        try {
-          const maxAge = Math.floor(
-            (new Date(result.endDate).getTime() - Date.now()) / 1000,
-          );
-          // Guard against malformed dates: new Date("invalid") returns
-          // NaN without throwing, which would produce "Max-Age=NaN".
-          if (Number.isFinite(maxAge)) {
-            setCookie(SESSION_HINT_COOKIE_NAME, "true", maxAge);
-          } else {
-            logger.warn(
-              "Unable to parse the user's trial end date:",
-              result.endDate,
-            );
-          }
-        } catch (error) {
-          // On error log a warning, and leave the cookie however it is.
-          logger.warn(
-            "Unable to parse the user's trial end date to set the login hint cookie",
-            error,
-          );
-        }
-      }
     },
     [updateSignupPhase],
   );
@@ -182,7 +139,6 @@ export function UserProvider({
    */
   const signupUser = useCallback(async () => {
     if (
-      !isUserAuthenticated ||
       userSignupPhaseRef.current === UserSignupPhase.READY ||
       userSignupPhaseRef.current === UserSignupPhase.BLOCKED ||
       userSignupPhaseRef.current === UserSignupPhase.SIGNING_UP ||
@@ -257,16 +213,10 @@ export function UserProvider({
         );
       }
     }
-  }, [addAlert, addAlertFromError, isUserAuthenticated, updateSignupPhase]);
+  }, [addAlert, addAlertFromError, updateSignupPhase]);
 
   // Initial user fetch when the provider is mounted.
   useEffect(() => {
-    // Don't fetch the user signup for unauthenticated users.
-    if (!isUserAuthenticated) {
-      updateSignupPhase(UserSignupPhase.UNAUTHENTICATED);
-      return;
-    }
-
     // Use a guard to avoid acting on stale requests.
     let cancelled = false;
     const controller = new AbortController();
@@ -321,7 +271,6 @@ export function UserProvider({
   }, [
     addAlertFromError,
     bootstrapData.signupData,
-    isUserAuthenticated,
     fetchUser,
     processSignupResult,
     updateSignupPhase,
@@ -329,11 +278,6 @@ export function UserProvider({
 
   // Determine if we should be polling to fetch the latest user data.
   const shouldBePolling = useMemo<boolean>(() => {
-    // We definitely should not be polling if the user is unauthenticated.
-    if (!isUserAuthenticated) {
-      return false;
-    }
-
     switch (userSignupPhase) {
       case UserSignupPhase.INITIAL_FETCH:
       case UserSignupPhase.NOT_STARTED:
@@ -346,7 +290,7 @@ export function UserProvider({
       case UserSignupPhase.PROVISIONING:
         return true;
     }
-  }, [isUserAuthenticated, userSignupPhase]);
+  }, [userSignupPhase]);
 
   // Determine the polling interval for the user data.
   const pollInterval = useMemo<number>(() => {

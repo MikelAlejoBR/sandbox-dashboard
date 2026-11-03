@@ -29,7 +29,6 @@ import { products } from "../productData";
 const aapProduct = products.find((p) => p.type === ProductType.AAP)!;
 
 const authenticatedUser: AuthenticatedContextValue = {
-  authenticated: true,
   email: "johndoe@redhat.com",
   familyName: "Doe",
   givenName: "John",

@@ -8,7 +8,6 @@ import {
 } from "react";
 
 import { getSegmentWriteKey, getUIConfig } from "../api/registration";
-import { useAuth } from "../auth/AuthenticatedContext";
 import { Intcmp } from "../components/Catalog/productData";
 import { Environment, getConfig } from "../config/config";
 import type { Product } from "../types/product";
@@ -32,7 +31,6 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
 
   const isProd = getConfig().environment === Environment.PRODUCTION;
   const { user } = useUserContext();
-  const { authenticated: isUserAuthenticated } = useAuth();
 
   const [consentGranted, setConsentGranted] = useState(() =>
     isProd ? hasAnalyticsConsent() : false,
@@ -163,9 +161,8 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     lastIdentifiedUserIdRef.current = undefined;
   }, [consentGranted]);
 
-  // Fetch the Segment key only in production after consent is granted. Also
-  // fetch the Marketo webhook URL if the user is authenticated, since we
-  // can't get any useful customer information otherwise.
+  // Fetch the Segment key and the Marketo webhook URL in production after
+  // consent is granted.
   useEffect(() => {
     if (!isProd || !consentGranted) {
       return;
@@ -187,29 +184,22 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     };
     fetchSegmentKey();
 
-    /**
-     * Fetch Marketo webhook's URL only when the user is authenticated. We
-     * only track events in the authenticated pages with it and also we do not
-     * want to expose the URL to unauthenticated users.
-     */
-    if (isUserAuthenticated) {
-      const fetchMarketoWebhookURL = async () => {
-        try {
-          const workatoWebHookURL = (await getUIConfig()).workatoWebHookURL;
-          if (!stale) {
-            setMarketoWebhookURL(workatoWebHookURL);
-          }
-        } catch {
-          // Continue without Marketo analytics
+    const fetchMarketoWebhookURL = async () => {
+      try {
+        const workatoWebHookURL = (await getUIConfig()).workatoWebHookURL;
+        if (!stale) {
+          setMarketoWebhookURL(workatoWebHookURL);
         }
-      };
-      fetchMarketoWebhookURL();
-    }
+      } catch {
+        // Continue without Marketo analytics
+      }
+    };
+    fetchMarketoWebhookURL();
 
     return () => {
       stale = true;
     };
-  }, [isUserAuthenticated, isProd, consentGranted]);
+  }, [isProd, consentGranted]);
 
   // Initialize Segment when write key arrives (only while consent holds).
   useEffect(() => {
@@ -232,7 +222,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
   // network requests. The refs reset when the userID changes so that a
   // different user (e.g. after logout/login) gets properly re-identified.
   useEffect(() => {
-    if (!analyticsRef.current || !isUserAuthenticated) {
+    if (!analyticsRef.current) {
       return;
     }
 
@@ -272,7 +262,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         // ignore group errors
       }
     }
-  }, [isUserAuthenticated, consentGranted, segmentWriteKey, user]);
+  }, [consentGranted, segmentWriteKey, user]);
 
   // Tracks a user interaction by with both Segment and Marketo.
   //
@@ -282,12 +272,7 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const trackAnalytics = useCallback(
     (
       itemNameOrProduct: string | Product,
-      section:
-        | "Catalog"
-        | "Activities"
-        | "Landing"
-        | "Support"
-        | "Verification",
+      section: "Catalog" | "Activities" | "Support" | "Verification",
       href?: string,
       linkType: "cta" | "default" = "default",
     ) => {
@@ -313,14 +298,12 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      // Track only catalog clicks with a valid campaign for Marketo. Also,
-      // only track authenticated users, since we do not have any customer
-      // information for unauthenticated users anyway.
-      if (isUserAuthenticated && section === "Catalog" && internalCampaign) {
+      // Track only catalog clicks with a valid campaign for Marketo.
+      if (section === "Catalog" && internalCampaign) {
         trackMarketoEvent(user, internalCampaign, marketoWebhookURL);
       }
     },
-    [isUserAuthenticated, consentGranted, marketoWebhookURL, user],
+    [consentGranted, marketoWebhookURL, user],
   );
 
   return (

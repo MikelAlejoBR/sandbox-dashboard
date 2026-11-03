@@ -22,7 +22,6 @@ export const mockAuthenticatedContext = (): AuthenticatedContextValue => {
   setTokenGetter(async () => "dev-fake-token");
 
   return {
-    authenticated: true,
     token: "dev-fake-token",
     givenName: "Developer",
     familyName: "Sandbox",

@@ -5,23 +5,9 @@ import { setTokenGetter } from "../../api/authFetch";
 import { type AppConfig, Environment } from "../../config/config";
 import { authConfigFixture } from "../../mocks/fixtures/registration-fixtures";
 import { server } from "../../mocks/server";
-import type { AuthenticatedContextValue } from "../AuthenticatedContext";
 import initializeKeycloak, {
   createAndConfigureKeycloak,
-  SESSION_HINT_COOKIE_NAME,
 } from "../initializeKeycloak";
-
-/**
- * Narrows an {@link AuthenticatedContextValue} to its authenticated branch,
- * failing the test if the value is unauthenticated.
- */
-function expectAuthenticated(value: AuthenticatedContextValue) {
-  expect(value.authenticated).toBe(true);
-  if (!value.authenticated) {
-    throw new Error("Expected an authenticated context value");
-  }
-  return value;
-}
 
 vi.mock("keycloak-js", () => {
   const MockKeycloak = vi.fn();
@@ -50,14 +36,6 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   server.resetHandlers();
   vi.clearAllMocks();
-
-  // Clean up cookies between tests.
-  document.cookie.split(";").forEach((c) => {
-    const name = c.split("=")[0].trim();
-    if (name) {
-      document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
-    }
-  });
 });
 afterAll(() => server.close());
 
@@ -235,7 +213,7 @@ describe("initializeKeycloak", () => {
     });
 
     it("returns the authenticated context value from token claims", async () => {
-      const result = expectAuthenticated(await initializeKeycloak(keycloak));
+      const result = await initializeKeycloak(keycloak);
 
       expect(result.token).toBe("mock-token");
       expect(result.givenName).toBe("Jane");
@@ -250,45 +228,6 @@ describe("initializeKeycloak", () => {
       await expect(initializeKeycloak(keycloak)).rejects.toThrow(
         "Authentication failed",
       );
-    });
-  });
-
-  describe("session hint cookie", () => {
-    it("sets the hint cookie after successful authentication", async () => {
-      await initializeKeycloak(keycloak);
-
-      expect(document.cookie).toContain(`${SESSION_HINT_COOKIE_NAME}=true`);
-    });
-
-    it("sets the hint cookie with a one-year Max-Age", async () => {
-      const cookieSpy = vi.spyOn(document, "cookie", "set");
-      await initializeKeycloak(keycloak);
-
-      const hintCall = cookieSpy.mock.calls.find((call) =>
-        call[0].includes(SESSION_HINT_COOKIE_NAME),
-      );
-      expect(hintCall).toBeDefined();
-      expect(hintCall![0]).toContain("Max-Age=31536000");
-
-      cookieSpy.mockRestore();
-    });
-
-    it("does not overwrite the cookie if it already exists", async () => {
-      // Simulate a returning user whose cookie was previously refined
-      // to a trial-end expiration by the UserProvider.
-      document.cookie = `${SESSION_HINT_COOKIE_NAME}=true; Max-Age=3600; Path=/; SameSite=Lax`;
-
-      const cookieSpy = vi.spyOn(document, "cookie", "set");
-      await initializeKeycloak(keycloak);
-
-      // initializeKeycloak should not have written the hint cookie
-      // at all, preserving the existing expiration.
-      const hintCalls = cookieSpy.mock.calls.filter((call) =>
-        call[0].includes(SESSION_HINT_COOKIE_NAME),
-      );
-      expect(hintCalls).toHaveLength(0);
-
-      cookieSpy.mockRestore();
     });
   });
 
@@ -307,15 +246,11 @@ describe("initializeKeycloak", () => {
   });
 
   describe("logout", () => {
-    it("clears the hint cookie and calls keycloak.logout", async () => {
-      const result = expectAuthenticated(await initializeKeycloak(keycloak));
-
-      // The cookie should be present after login.
-      expect(document.cookie).toContain(`${SESSION_HINT_COOKIE_NAME}=true`);
+    it("calls keycloak.logout", async () => {
+      const result = await initializeKeycloak(keycloak);
 
       result.logout();
 
-      expect(document.cookie).not.toContain(`${SESSION_HINT_COOKIE_NAME}=true`);
       expect(mockKeycloakInstance.logout).toHaveBeenCalled();
     });
   });

@@ -35,6 +35,7 @@ export async function selectCountryCode(
   const countryCodeInput = getCountryCodeInput();
   await user.click(countryCodeInput);
   await user.clear(countryCodeInput);
-  await user.type(countryCodeInput, filter);
-  await user.click(screen.getByRole("option", { name: optionLabel }));
+  // One paste avoids a re-render for every character of the filter.
+  await user.paste(filter);
+  await user.click(await screen.findByRole("option", { name: optionLabel }));
 }

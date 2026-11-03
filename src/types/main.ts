@@ -13,14 +13,13 @@ import type { User } from "./user";
 export type BootstrapData = {
   /**
    * The public configuration of the UI. The disabled integrations' bit that
-   * it contains is crucial to know which product tiles we want to show for
-   * the users both in the landing and in the catalog pages.
+   * it contains is crucial to know which product tiles we want to show.
    */
   publicConfig: Promise<PublicUIConfig>;
 
   /**
    * The signup data of the user. We need it to check which status the user
-   * signup is in, and to either show the landing or catalog pages.
+   * signup is in.
    */
   signupData?: Promise<User | undefined>;
 };

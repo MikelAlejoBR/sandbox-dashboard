@@ -27,7 +27,6 @@ import { makeOpenClawContext } from "./openClawTestHelpers";
 const openclawProduct = products.find((p) => p.type === ProductType.OPENCLAW)!;
 
 const authenticatedUser: AuthenticatedContextValue = {
-  authenticated: true,
   email: "johndoe@redhat.com",
   familyName: "Doe",
   givenName: "John",

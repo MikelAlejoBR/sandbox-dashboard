@@ -7,10 +7,8 @@ import {
   useState,
 } from "react";
 
-import { useAuth } from "../../auth/AuthenticatedContext";
 import { SignupInProgressModal } from "../../components/Modals";
 import { ProductType } from "../../types/product";
-import logger from "../../utils/logger";
 import { useUserContext } from "../UserContext";
 import { UserSignupPhase } from "../userSignupPhase";
 import { type SignupAction, SignupActionContext } from "./SignupActionContext";
@@ -22,72 +20,6 @@ import {
 } from "./signupActionUtils";
 
 /**
- * Key used to store the intent of the user when they click the "Try it"
- * button when unauthenticated. The goal is for the pending action to be
- * recovered after they're authenticated to avoid having them click again.
- *
- * Session storage is used instead of local storage because the SSO redirect
- * happens in the same tab, and because it might be a confusing UX if the user
- * clicks a "Try it" button in a different tab and then in their main tab a
- * thing opens without them clicking on it.
- */
-const PENDING_SIGNUP_INTENT_KEY = "pending-signup-intent-key";
-
-/**
- * A signup action provider which is capable of running the user signup and
- * executing any pending actions when the signup becomes ready.
- */
-export function SignupActionProvider({ children }: { children: ReactNode }) {
-  const auth = useAuth();
-
-  if (auth.authenticated) {
-    return (
-      <AuthenticatedSignupActionProvider>
-        {children}
-      </AuthenticatedSignupActionProvider>
-    );
-  } else {
-    return (
-      <UnauthenticatedSignupActionProvider login={auth.login}>
-        {children}
-      </UnauthenticatedSignupActionProvider>
-    );
-  }
-}
-
-/**
- * A no-op provider which simply stores the user's intended action and starts
- * the login flow to authenticate the user.
- */
-export function UnauthenticatedSignupActionProvider({
-  login,
-  children,
-}: {
-  login: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <SignupActionContext.Provider
-      value={{
-        isSignupInProgress: false,
-        signupAndRun: (productType: ProductType) => {
-          try {
-            sessionStorage.setItem(PENDING_SIGNUP_INTENT_KEY, productType);
-          } catch (error) {
-            logger.error("Unable to persist signup and run intent: ", error);
-          }
-
-          login();
-        },
-        registerAction: () => {},
-      }}
-    >
-      {children}
-    </SignupActionContext.Provider>
-  );
-}
-
-/**
  * Owns the signup-to-action flow: when a user clicks a catalog CTA
  * before being signed up, this provider starts signup, watches user
  * activation, and either auto-runs the action (fast path) or shows a
@@ -97,11 +29,7 @@ export function UnauthenticatedSignupActionProvider({
  * AAP/OpenClaw NO-OP provider for the connected one does not lose the
  * pending action.
  */
-export function AuthenticatedSignupActionProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function SignupActionProvider({ children }: { children: ReactNode }) {
   const { signupUser, userSignupPhase } = useUserContext();
 
   /**
@@ -346,57 +274,6 @@ export function AuthenticatedSignupActionProvider({
     },
     [applyAction, signupUser, startWatcher, userSignupPhase],
   );
-
-  /**
-   * Runs when there is a pending intent to be executed.
-   *
-   * When the user is unauthenticated, they might click on "Try it" on one of
-   * the cards, so after storing that intent, we pull it here in order to try
-   * to sign them up and execute whatever action they intended to do.
-   */
-  useEffect(() => {
-    // The only times we want to have that automatic signup is when the user
-    // did not previously have a signup, because we assume they're ready to
-    // try the product. The other scenario is a returning user who might have
-    // been logged out and clicked on one of the products to use it.
-    if (
-      userSignupPhase !== UserSignupPhase.NOT_STARTED &&
-      userSignupPhase !== UserSignupPhase.READY
-    ) {
-      return;
-    }
-
-    let stored: string | null;
-    try {
-      stored = sessionStorage.getItem(PENDING_SIGNUP_INTENT_KEY);
-    } catch (error) {
-      logger.error("Unable to read signup intent from sessionStorage:", error);
-      return;
-    }
-
-    if (!stored) {
-      return;
-    }
-
-    // Consume immediately to prevent double-execution on re-renders.
-    try {
-      sessionStorage.removeItem(PENDING_SIGNUP_INTENT_KEY);
-    } catch (error) {
-      logger.error(
-        "Unable to remove signup intent from sessionStorage:",
-        error,
-      );
-      return;
-    }
-
-    // Validate the stored value is a known ProductType.
-    if (!Object.values(ProductType).includes(stored as ProductType)) {
-      return;
-    }
-
-    // Run the user signup and hopefully the pending action too.
-    signupAndRun(stored as ProductType);
-  }, [signupAndRun, userSignupPhase]);
 
   /**
    * Watches the user signup in case we need to interrupt the pending

@@ -1,19 +1,17 @@
 import type { AppConfig } from "../../config/config";
 import { Environment } from "../../config/config";
-import type { AuthenticatedContextValue } from "../AuthenticatedContext";
+import type { AuthenticatedUser } from "../AuthenticatedContext";
+import { AuthenticationError } from "../AuthenticationError";
 import { resolveAuthentication } from "../resolveAuthentication";
 
 /**
  * Tests for the resolveAuthentication function.
  *
- * These tests verify the branching logic that decides whether the user
- * goes through the Keycloak SSO flow (hint cookie / OIDC callback),
- * gets shown an error (OIDC error callback), or lands on the
- * unauthenticated page. Lower-level Keycloak plumbing is mocked here
- * — see initializeKeycloak.test.ts for those details.
+ * These tests verify that every non-development visit initializes
+ * Keycloak, and that an identity-provider error is reported without
+ * starting another login redirect. Lower-level Keycloak plumbing is
+ * mocked here — see initializeKeycloak.test.ts for those details.
  */
-
-// --- Mocks ---
 
 const mockKeycloakInstance = {
   init: vi.fn(),
@@ -21,14 +19,7 @@ const mockKeycloakInstance = {
   logout: vi.fn(),
 };
 
-const mockFreshKeycloakInstance = {
-  init: vi.fn(),
-  login: vi.fn(),
-  logout: vi.fn(),
-};
-
-const mockAuthenticatedResult: AuthenticatedContextValue = {
-  authenticated: true,
+const mockAuthenticatedResult: AuthenticatedUser = {
   email: "jane@example.com",
   familyName: "Doe",
   givenName: "Jane",
@@ -40,13 +31,6 @@ const mockAuthenticatedResult: AuthenticatedContextValue = {
 vi.mock("../initializeKeycloak", () => ({
   default: vi.fn(),
   createAndConfigureKeycloak: vi.fn(),
-  SESSION_HINT_COOKIE_NAME: "rh_sd_session_hint",
-}));
-
-vi.mock("../../utils/cookie-utils", () => ({
-  deleteCookie: vi.fn(),
-  getCookie: vi.fn(),
-  setCookie: vi.fn(),
 }));
 
 vi.mock("../../mocks/browser", () => ({
@@ -63,7 +47,6 @@ vi.mock("../../utils/logger", () => ({
 }));
 
 import { mockAuthenticatedContext } from "../../mocks/browser";
-import { deleteCookie, getCookie } from "../../utils/cookie-utils";
 import logger from "../../utils/logger";
 import initializeKeycloak, {
   createAndConfigureKeycloak,
@@ -89,17 +72,12 @@ let originalLocation: Location;
 beforeEach(() => {
   originalLocation = window.location;
 
-  // resetAllMocks clears both call history and implementation, so
-  // every mock must be re-configured here for a clean slate.
   mockKeycloakInstance.init.mockResolvedValue(true);
-  mockFreshKeycloakInstance.init.mockResolvedValue(true);
   vi.mocked(createAndConfigureKeycloak).mockResolvedValue(
     mockKeycloakInstance as never,
   );
   vi.mocked(initializeKeycloak).mockResolvedValue(mockAuthenticatedResult);
-  vi.mocked(getCookie).mockReturnValue("");
   vi.mocked(mockAuthenticatedContext).mockReturnValue({
-    authenticated: true,
     email: "dev@example.com",
     familyName: "Sandbox",
     givenName: "Developer",
@@ -128,23 +106,20 @@ function setLocation(url: string) {
   });
 }
 
-// --- Tests ---
-
 describe("resolveAuthentication", () => {
   describe("DEVELOPMENT environment", () => {
     it("returns a mock authenticated context without touching Keycloak", async () => {
       const result = await resolveAuthentication(devConfig);
 
-      expect(result.authenticated).toBe(true);
+      expect(result.username).toBe("dev-user");
       expect(mockAuthenticatedContext).toHaveBeenCalled();
       expect(createAndConfigureKeycloak).not.toHaveBeenCalled();
       expect(initializeKeycloak).not.toHaveBeenCalled();
     });
   });
 
-  describe("session hint cookie present", () => {
-    it("triggers the full SSO flow via initializeKeycloak", async () => {
-      vi.mocked(getCookie).mockReturnValue("true");
+  describe("single sign-on", () => {
+    it("initializes Keycloak on a clean visit", async () => {
       setLocation("https://sandbox.redhat.com/");
 
       const result = await resolveAuthentication(productionConfig);
@@ -153,10 +128,8 @@ describe("resolveAuthentication", () => {
       expect(initializeKeycloak).toHaveBeenCalledWith(mockKeycloakInstance);
       expect(result).toBe(mockAuthenticatedResult);
     });
-  });
 
-  describe("OIDC callback detection", () => {
-    it("detects a code parameter in the URL fragment", async () => {
+    it("initializes Keycloak when the callback carries an auth code", async () => {
       setLocation("https://sandbox.redhat.com/#state=abc&code=auth-code-123");
 
       const result = await resolveAuthentication(productionConfig);
@@ -165,331 +138,88 @@ describe("resolveAuthentication", () => {
       expect(result).toBe(mockAuthenticatedResult);
     });
 
-    it("detects a code parameter in the query string", async () => {
-      setLocation("https://sandbox.redhat.com/?state=abc&code=auth-code-123");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      expect(initializeKeycloak).toHaveBeenCalledWith(mockKeycloakInstance);
-      expect(result).toBe(mockAuthenticatedResult);
-    });
-
-    it("does not false-positive on unrelated fragment parameters", async () => {
-      setLocation("https://sandbox.redhat.com/#section=overview");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      expect(initializeKeycloak).not.toHaveBeenCalled();
-      expect(result.authenticated).toBe(false);
-    });
-  });
-
-  describe("authentication failure recovery", () => {
-    const authError = new Error("SSO session expired");
-
-    beforeEach(() => {
-      vi.mocked(initializeKeycloak).mockRejectedValue(authError);
-
-      // The first call returns the primary instance (which will fail
-      // inside initializeKeycloak), and the second returns a fresh
-      // instance for the fallback.
-      vi.mocked(createAndConfigureKeycloak)
-        .mockResolvedValueOnce(mockKeycloakInstance as never)
-        .mockResolvedValueOnce(mockFreshKeycloakInstance as never);
-    });
-
-    it("returns unauthenticated with the error message when the hint triggers a failure", async () => {
-      vi.mocked(getCookie).mockReturnValue("true");
+    it("wraps an initialization failure as an authentication error", async () => {
       setLocation("https://sandbox.redhat.com/");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      expect(result.authenticated).toBe(false);
-      if (!result.authenticated) {
-        expect(result.authenticationError).toBe("SSO session expired");
-        expect(result.login).toBeTypeOf("function");
-      }
-    });
-
-    it("clears the hint cookie on failure", async () => {
-      vi.mocked(getCookie).mockReturnValue("true");
-      setLocation("https://sandbox.redhat.com/");
-
-      await resolveAuthentication(productionConfig);
-
-      expect(deleteCookie).toHaveBeenCalledWith("rh_sd_session_hint");
-    });
-
-    it("creates a fresh Keycloak instance for the login fallback", async () => {
-      vi.mocked(getCookie).mockReturnValue("true");
-      setLocation("https://sandbox.redhat.com/");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      // The second call to createAndConfigureKeycloak is for the
-      // fresh instance after the first one failed.
-      expect(createAndConfigureKeycloak).toHaveBeenCalledTimes(2);
-
-      // init and login are deferred until login is triggered.
-      expect(mockFreshKeycloakInstance.init).not.toHaveBeenCalled();
-
-      if (!result.authenticated) {
-        await result.login();
-        expect(mockFreshKeycloakInstance.init).toHaveBeenCalledWith({
-          checkLoginIframe: false,
-        });
-        expect(mockFreshKeycloakInstance.login).toHaveBeenCalled();
-      }
-    });
-
-    it("does not reinitialize the fresh Keycloak instance when login is called twice", async () => {
-      vi.mocked(getCookie).mockReturnValue("true");
-      setLocation("https://sandbox.redhat.com/");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      if (!result.authenticated) {
-        await result.login();
-        await result.login();
-        expect(mockFreshKeycloakInstance.init).toHaveBeenCalledTimes(1);
-        expect(mockFreshKeycloakInstance.login).toHaveBeenCalledTimes(2);
-      }
-    });
-
-    it("stringifies non-Error exceptions", async () => {
-      vi.mocked(initializeKeycloak).mockRejectedValue("raw string error");
-      vi.mocked(getCookie).mockReturnValue("true");
-      setLocation("https://sandbox.redhat.com/");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      if (!result.authenticated) {
-        expect(result.authenticationError).toBe("raw string error");
-      }
-    });
-
-    it("logs the error via the logger", async () => {
-      vi.mocked(getCookie).mockReturnValue("true");
-      setLocation("https://sandbox.redhat.com/");
-
-      await resolveAuthentication(productionConfig);
-
-      expect(logger.error).toHaveBeenCalledWith(
-        "Authentication failed:",
-        authError,
+      vi.mocked(initializeKeycloak).mockRejectedValue(
+        new Error("SSO session expired"),
       );
+
+      await expect(resolveAuthentication(productionConfig)).rejects.toEqual(
+        expect.objectContaining({
+          name: "AuthenticationError",
+          message: "We were unable to complete sign-in. Please try again.",
+        }),
+      );
+      await expect(
+        resolveAuthentication(productionConfig),
+      ).rejects.toBeInstanceOf(AuthenticationError);
+      expect(logger.error).toHaveBeenCalled();
+    });
+
+    it("wraps a non-Error initialization failure", async () => {
+      setLocation("https://sandbox.redhat.com/");
+      vi.mocked(initializeKeycloak).mockRejectedValue("raw string error");
+
+      await expect(resolveAuthentication(productionConfig)).rejects.toThrow(
+        "We were unable to complete sign-in. Please try again.",
+      );
+      await expect(
+        resolveAuthentication(productionConfig),
+      ).rejects.toBeInstanceOf(AuthenticationError);
+    });
+
+    it("lets a configuration failure keep its original error", async () => {
+      setLocation("https://sandbox.redhat.com/");
+      const configurationError = new Error(
+        "Failed to fetch the configuration for the authentication client: 500",
+      );
+      vi.mocked(createAndConfigureKeycloak).mockRejectedValue(
+        configurationError,
+      );
+
+      await expect(resolveAuthentication(productionConfig)).rejects.toBe(
+        configurationError,
+      );
+      expect(initializeKeycloak).not.toHaveBeenCalled();
     });
   });
 
   describe("OIDC error callback", () => {
-    it("surfaces an error from the URL fragment", async () => {
+    it("reports a fragment error without initializing Keycloak", async () => {
       setLocation(
-        "https://sandbox.redhat.com/#error=access_denied&error_description=User%20denied%20consent",
+        "https://sandbox.redhat.com/#error=access_denied&error_description=User%20denied%20consent&state=abc",
       );
 
-      const result = await resolveAuthentication(productionConfig);
-
+      await expect(resolveAuthentication(productionConfig)).rejects.toThrow(
+        "We were unable to complete sign-in. Please try again.",
+      );
       expect(initializeKeycloak).not.toHaveBeenCalled();
-      expect(result.authenticated).toBe(false);
-      if (!result.authenticated) {
-        expect(result.authenticationError).toBe("User denied consent");
-      }
-    });
-
-    it("surfaces an error from the query string", async () => {
-      setLocation(
-        "https://sandbox.redhat.com/?error=access_denied&error_description=Account%20disabled",
-      );
-
-      const result = await resolveAuthentication(productionConfig);
-
-      expect(result.authenticated).toBe(false);
-      if (!result.authenticated) {
-        expect(result.authenticationError).toBe("Account disabled");
-      }
-    });
-
-    it("falls back to the error code when no description is present", async () => {
-      setLocation("https://sandbox.redhat.com/#error=server_error");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      expect(result.authenticated).toBe(false);
-      if (!result.authenticated) {
-        expect(result.authenticationError).toBe("server_error");
-      }
-    });
-
-    it("clears the hint cookie on OIDC error", async () => {
-      setLocation("https://sandbox.redhat.com/#error=access_denied");
-
-      await resolveAuthentication(productionConfig);
-
-      expect(deleteCookie).toHaveBeenCalledWith("rh_sd_session_hint");
-    });
-
-    it("defers adapter initialization to the login call", async () => {
-      setLocation("https://sandbox.redhat.com/#error=access_denied");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      // init is not called eagerly — it only runs when login is
-      // triggered, keeping the landing page render non-blocking.
-      expect(mockKeycloakInstance.init).not.toHaveBeenCalled();
-
-      if (!result.authenticated) {
-        await result.login();
-        expect(mockKeycloakInstance.init).toHaveBeenCalledWith({
-          checkLoginIframe: false,
-        });
-      }
-    });
-
-    it("provides a working login function from the original instance", async () => {
-      setLocation("https://sandbox.redhat.com/#error=access_denied");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      if (!result.authenticated) {
-        await result.login();
-        expect(mockKeycloakInstance.login).toHaveBeenCalled();
-      }
-    });
-
-    it("does not reinitialize Keycloak when login is called twice", async () => {
-      setLocation("https://sandbox.redhat.com/#error=access_denied");
-
-      const result = await resolveAuthentication(productionConfig);
-
-      if (!result.authenticated) {
-        await result.login();
-        await result.login();
-        expect(mockKeycloakInstance.init).toHaveBeenCalledTimes(1);
-        expect(mockKeycloakInstance.login).toHaveBeenCalledTimes(2);
-      }
-    });
-
-    it("logs the OIDC error via the logger", async () => {
-      setLocation(
-        "https://sandbox.redhat.com/#error=access_denied&error_description=Denied",
-      );
-
-      await resolveAuthentication(productionConfig);
-
+      expect(createAndConfigureKeycloak).not.toHaveBeenCalled();
       expect(logger.error).toHaveBeenCalledWith(
         "OIDC error:",
         "access_denied",
-        "Denied",
+        "User denied consent",
       );
     });
-  });
 
-  describe("unauthenticated visitor (no hint, no callback, no error)", () => {
-    beforeEach(() => {
-      setLocation("https://sandbox.redhat.com/");
-    });
+    it("reports a query-string error description", async () => {
+      setLocation(
+        "https://sandbox.redhat.com/?error=access_denied&error_description=Account%20disabled&state=abc",
+      );
 
-    it("returns an unauthenticated context without authenticationError", async () => {
-      const result = await resolveAuthentication(productionConfig);
-
-      expect(result.authenticated).toBe(false);
-      if (!result.authenticated) {
-        expect(result.authenticationError).toBeUndefined();
-        expect(result.login).toBeTypeOf("function");
-      }
-    });
-
-    it("defers adapter initialization to the login call", async () => {
-      const result = await resolveAuthentication(productionConfig);
-
-      // init is not called eagerly — it only runs when login is
-      // triggered, keeping the landing page render non-blocking.
-      expect(mockKeycloakInstance.init).not.toHaveBeenCalled();
-
-      if (!result.authenticated) {
-        await result.login();
-        expect(mockKeycloakInstance.init).toHaveBeenCalledWith({
-          checkLoginIframe: false,
-        });
-      }
-    });
-
-    it("does not call initializeKeycloak", async () => {
-      await resolveAuthentication(productionConfig);
-
+      await expect(resolveAuthentication(productionConfig)).rejects.toThrow(
+        "We were unable to complete sign-in. Please try again.",
+      );
       expect(initializeKeycloak).not.toHaveBeenCalled();
     });
 
-    it("provides a working login function", async () => {
-      const result = await resolveAuthentication(productionConfig);
+    it("reports an error code without a description", async () => {
+      setLocation("https://sandbox.redhat.com/?error=server_error&state=abc");
 
-      if (!result.authenticated) {
-        await result.login();
-        expect(mockKeycloakInstance.login).toHaveBeenCalled();
-      }
-    });
-
-    it("does not reinitialize Keycloak when login is called twice", async () => {
-      const result = await resolveAuthentication(productionConfig);
-
-      if (!result.authenticated) {
-        await result.login();
-        await result.login();
-        expect(mockKeycloakInstance.init).toHaveBeenCalledTimes(1);
-        expect(mockKeycloakInstance.login).toHaveBeenCalledTimes(2);
-      }
-    });
-
-    it("shares the init() promise when login is called concurrently", async () => {
-      let resolveInit!: (value: boolean) => void;
-      mockKeycloakInstance.init.mockReturnValue(
-        new Promise<boolean>((resolve) => {
-          resolveInit = resolve;
-        }),
+      await expect(resolveAuthentication(productionConfig)).rejects.toThrow(
+        "We were unable to complete sign-in. Please try again.",
       );
-
-      const result = await resolveAuthentication(productionConfig);
-
-      if (!result.authenticated) {
-        const first = result.login();
-        const second = result.login();
-
-        // Wait until init has actually been called before resolving,
-        // so that both login calls are truly in-flight while
-        // initialization is pending.
-        await vi.waitFor(() => {
-          expect(mockKeycloakInstance.init).toHaveBeenCalled();
-        });
-
-        resolveInit(true);
-        await first;
-        await second;
-
-        expect(mockKeycloakInstance.init).toHaveBeenCalledTimes(1);
-        expect(mockKeycloakInstance.login).toHaveBeenCalledTimes(2);
-      }
-    });
-
-    it("does not clear the hint cookie", async () => {
-      await resolveAuthentication(productionConfig);
-
-      expect(deleteCookie).not.toHaveBeenCalled();
-    });
-  });
-
-  describe("branch priority", () => {
-    it("prefers the hint/callback branch over an OIDC error when both are present", async () => {
-      // This can happen if a stale "error" param is still in the URL
-      // alongside a fresh "code" from a retry.
-      vi.mocked(getCookie).mockReturnValue("true");
-      setLocation(
-        "https://sandbox.redhat.com/#code=fresh-code&error=old_error",
-      );
-
-      const result = await resolveAuthentication(productionConfig);
-
-      expect(initializeKeycloak).toHaveBeenCalled();
-      expect(result).toBe(mockAuthenticatedResult);
+      expect(initializeKeycloak).not.toHaveBeenCalled();
     });
   });
 });
