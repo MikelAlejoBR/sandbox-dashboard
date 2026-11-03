@@ -70,6 +70,11 @@ test.describe("Catalog page", () => {
             .getByRole("article", { name: "OpenShift product card" })
             .getByRole("button", { name: "Try it" }),
         ).toBeVisible();
+
+        // An activation code is only useful before signup starts.
+        await expect(
+          page.getByRole("button", { name: "Have an activation code?" }),
+        ).toBeVisible();
       });
 
       test("shows a suspended banner when the user is blocked", async ({
