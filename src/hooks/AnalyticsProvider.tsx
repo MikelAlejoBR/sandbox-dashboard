@@ -13,21 +13,12 @@ import { Intcmp } from "../components/Catalog/productData";
 import { Environment, getConfig } from "../config/config";
 import type { Product } from "../types/product";
 import { segmentTrackClick, trackMarketoEvent } from "../utils/analytics";
+import {
+  CONSENT_POLL_DELAY_MS,
+  hasAnalyticsConsent,
+} from "../utils/analytics-consent";
 import { AnalyticsContext } from "./AnalyticsContext";
 import { useUserContext } from "./UserContext";
-
-/**
- * Checks TrustArc's preference cookie for analytics consent (category 2).
- * Returns false when the cookie is absent or does not include the category.
- */
-function hasAnalyticsConsent(): boolean {
-  const match = document.cookie.match(/cmapi_cookie_privacy=([^;]+)/);
-  if (!match) {
-    return false;
-  }
-  const value = decodeURIComponent(match[1]);
-  return /permit\s+[\d,]*2/.test(value);
-}
 
 export function AnalyticsProvider({ children }: { children: ReactNode }) {
   const [marketoWebhookURL, setMarketoWebhookURL] = useState<
@@ -47,19 +38,75 @@ export function AnalyticsProvider({ children }: { children: ReactNode }) {
     isProd ? hasAnalyticsConsent() : false,
   );
 
-  // Listen for TrustArc consent changes (fires postMessage on decision).
+  // Keep analytics consent in sync with TrustArc. The
+  // `cmapi_cookie_privacy` cookie is the source of truth, but React will
+  // not re-read it unless something asks it to.
+  //
+  // TrustArc's banner can:
+  // - fire `window.postMessage` before the cookie is readable
+  // - write the cookie without a message we can use
+  // - take focus while the visitor decides
+  //
+  // So we re-check on `message` (banner decision), `focus` and
+  // `visibilitychange` (banner or tab interaction), and we also poll
+  // until category 2 is granted. We cannot treat a missing cookie as
+  // "the user rejected analytics": TrustArc does not persist a denial
+  // flag we can read, so a missing cookie only means "not granted yet".
+  // Polling therefore continues until consent appears, then stops. If
+  // the visitor later revokes analytics, polling starts again in case
+  // they accept on a later visit to the preference centre.
+  //
+  // The poll uses a recursive timeout rather than an interval: the next
+  // check is only scheduled after the current one finishes, so two
+  // cookie reads cannot overlap. `timeoutId` also prevents listeners
+  // from queuing a second pending check while one is already waiting.
   useEffect(() => {
     if (!isProd) {
       return;
     }
 
-    const checkConsent = () => {
-      const granted = hasAnalyticsConsent();
-      setConsentGranted((prev) => (prev !== granted ? granted : prev));
+    let timeoutId: number | undefined;
+
+    const stopPolling = () => {
+      if (timeoutId !== undefined) {
+        window.clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
     };
 
+    const scheduleNextCheck = () => {
+      if (timeoutId !== undefined) {
+        return;
+      }
+      timeoutId = window.setTimeout(() => {
+        timeoutId = undefined;
+        checkConsent();
+      }, CONSENT_POLL_DELAY_MS);
+    };
+
+    const checkConsent = (): boolean => {
+      const granted = hasAnalyticsConsent();
+      setConsentGranted((prev) => (prev !== granted ? granted : prev));
+      if (granted) {
+        stopPolling();
+      } else {
+        scheduleNextCheck();
+      }
+      return granted;
+    };
+
+    checkConsent();
+
     window.addEventListener("message", checkConsent);
-    return () => window.removeEventListener("message", checkConsent);
+    window.addEventListener("focus", checkConsent);
+    document.addEventListener("visibilitychange", checkConsent);
+
+    return () => {
+      window.removeEventListener("message", checkConsent);
+      window.removeEventListener("focus", checkConsent);
+      document.removeEventListener("visibilitychange", checkConsent);
+      stopPolling();
+    };
   }, [isProd]);
 
   // Include the Adobe Analytics in the page if we have permission for it.
