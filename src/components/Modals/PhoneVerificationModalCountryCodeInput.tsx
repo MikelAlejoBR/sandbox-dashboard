@@ -46,14 +46,17 @@ export const PhoneVerificationModalCountryCodeInput: React.FunctionComponent<
    * user inputted.
    */
   const filteredEntries = useMemo(() => {
-    if (!filterValue) {
-      return countryCodes;
+    const query = filterValue.trim();
+    // There are more than two hundred countries. Mounting every option
+    // before the user has typed makes each keystroke slow enough that
+    // the menu cannot keep up, so the list stays empty until there is
+    // a query.
+    if (!query) {
+      return [];
     }
 
     return countryCodes.filter((entry) =>
-      formatCountryCodeLabel(entry)
-        .toLowerCase()
-        .includes(filterValue.toLowerCase()),
+      formatCountryCodeLabel(entry).toLowerCase().includes(query.toLowerCase()),
     );
   }, [filterValue]);
 

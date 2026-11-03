@@ -76,7 +76,6 @@ vi.mock("@rhds/elements/react/rh-cta/rh-cta.js", () => ({
 const mockLogout = vi.fn();
 
 const authValue: AuthenticatedContextValue = {
-  authenticated: true,
   token: "test-token",
   givenName: "John",
   familyName: "Doe",

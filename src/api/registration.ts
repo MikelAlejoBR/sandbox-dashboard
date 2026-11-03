@@ -175,8 +175,8 @@ export async function getSegmentWriteKey(): Promise<string> {
 }
 
 /**
- * Fetches the public UI configuration from the back end.
- * @returns the public configuration for unauthenticated users.
+ * Fetches the UI configuration that does not require a user token.
+ * @returns the public UI configuration.
  */
 export async function getPublicUIConfiguration(): Promise<PublicUIConfig> {
   const response = await fetch(`${getBaseURL()}/uiconfig/public`, {

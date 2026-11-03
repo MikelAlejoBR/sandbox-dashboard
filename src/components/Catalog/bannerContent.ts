@@ -14,7 +14,6 @@ export interface BannerContent {
 /**
  * Resolves the content that we want to show in the banner depending on the
  * user's status.
- * @param isUserAuthenticated is the user logged in?
  * @param userSignupPhase which phase the user's user signup is in.
  * @param user the user itself.
  * @param daysLeft days left before the trial expires.
@@ -22,19 +21,10 @@ export interface BannerContent {
  * ready to be shown yet.
  */
 export function resolveBannerContent(
-  isUserAuthenticated: boolean,
   userSignupPhase: UserSignupPhase,
   user: User | undefined,
   daysLeft: number | undefined,
 ): BannerContent | undefined {
-  if (!isUserAuthenticated) {
-    return {
-      title: "Try Red Hat products",
-      subtitle:
-        "Log in to or sign up for a Red Hat account and try our products for free!",
-    };
-  }
-
   if (userSignupPhase === UserSignupPhase.INITIAL_FETCH) {
     return undefined;
   }

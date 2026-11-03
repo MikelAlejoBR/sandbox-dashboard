@@ -1,5 +1,3 @@
-import "./Layout.css";
-
 import {
   AlertVariant,
   Divider,
@@ -45,13 +43,10 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Prefer the signup user's name, fall back to the SSO identity from
-  // the auth context for authenticated users whose signup has not
-  // started yet.
-  const givenName =
-    user?.givenName || (auth.authenticated ? auth.givenName : undefined);
-  const familyName =
-    user?.familyName || (auth.authenticated ? auth.familyName : undefined);
+  // Prefer the signup user's name, and fall back to the SSO identity
+  // when signup has not started yet.
+  const givenName = user?.givenName || auth.givenName;
+  const familyName = user?.familyName || auth.familyName;
   const displayName =
     givenName && familyName
       ? `${givenName} ${familyName}`
@@ -121,56 +116,44 @@ export function Layout() {
               <ToolbarItem>
                 <ThemeSelector />
               </ToolbarItem>
-              {auth.authenticated ? (
-                <ToolbarItem>
-                  <Dropdown
-                    isOpen={isDropdownOpen}
-                    onSelect={() => setIsDropdownOpen(false)}
-                    onOpenChange={setIsDropdownOpen}
-                    popperProps={{ position: "end" }}
-                    toggle={{
-                      toggleNode: (
-                        <MenuToggle
-                          ref={toggleRef}
-                          onClick={() => setIsDropdownOpen((prev) => !prev)}
-                          isExpanded={isDropdownOpen}
-                          aria-label="User menu"
+              <ToolbarItem>
+                <Dropdown
+                  isOpen={isDropdownOpen}
+                  onSelect={() => setIsDropdownOpen(false)}
+                  onOpenChange={setIsDropdownOpen}
+                  popperProps={{ position: "end" }}
+                  toggle={{
+                    toggleNode: (
+                      <MenuToggle
+                        ref={toggleRef}
+                        onClick={() => setIsDropdownOpen((prev) => !prev)}
+                        isExpanded={isDropdownOpen}
+                        aria-label="User menu"
+                      >
+                        {displayName}
+                      </MenuToggle>
+                    ),
+                    toggleRef,
+                  }}
+                >
+                  <DropdownList>
+                    {userSignupPhase === UserSignupPhase.READY && (
+                      <>
+                        <DropdownItem
+                          key="reset"
+                          onClick={() => setIsResetModalOpen(true)}
                         >
-                          {displayName}
-                        </MenuToggle>
-                      ),
-                      toggleRef,
-                    }}
-                  >
-                    <DropdownList>
-                      {userSignupPhase === UserSignupPhase.READY && (
-                        <>
-                          <DropdownItem
-                            key="reset"
-                            onClick={() => setIsResetModalOpen(true)}
-                          >
-                            Reset Workspaces
-                          </DropdownItem>
-                          <Divider key="divider" />
-                        </>
-                      )}
-                      <DropdownItem key="logout" onClick={() => auth.logout()}>
-                        Log out
-                      </DropdownItem>
-                    </DropdownList>
-                  </Dropdown>
-                </ToolbarItem>
-              ) : (
-                <ToolbarItem>
-                  <MenuToggle
-                    className="login-signup-toggle"
-                    aria-label="Log in or sign up"
-                    onClick={() => auth.login()}
-                  >
-                    Login/Signup
-                  </MenuToggle>
-                </ToolbarItem>
-              )}
+                          Reset Workspaces
+                        </DropdownItem>
+                        <Divider key="divider" />
+                      </>
+                    )}
+                    <DropdownItem key="logout" onClick={() => auth.logout()}>
+                      Log out
+                    </DropdownItem>
+                  </DropdownList>
+                </Dropdown>
+              </ToolbarItem>
             </ToolbarGroup>
           </ToolbarContent>
         </Toolbar>

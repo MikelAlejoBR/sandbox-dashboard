@@ -4,10 +4,6 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 
 import { setTokenGetter } from "../../api/authFetch";
-import {
-  AuthenticatedContext,
-  type AuthenticatedContextValue,
-} from "../../auth/AuthenticatedContext";
 import { server } from "../../mocks/server";
 import type { User } from "../../types";
 import { type Product, ProductType } from "../../types/product";
@@ -49,30 +45,12 @@ const mockUserContext = {
   userSignupPhase: UserSignupPhase.READY,
 };
 
-const authenticatedAuthValue: AuthenticatedContextValue = {
-  authenticated: true,
-  token: "test-token",
-  givenName: "John",
-  familyName: "Doe",
-  email: "jdoe@redhat.com",
-  username: "jdoe",
-  logout: vi.fn(),
-};
-
-const unauthenticatedAuthValue: AuthenticatedContextValue = {
-  authenticated: false,
-  login: vi.fn(),
-};
-
 const mockProduct: Product = {
   type: ProductType.OPENSHIFT_CONSOLE,
   title: "OpenShift",
   image: "openshift.svg",
   urlTemplate: "{{consoleURL}}",
   description: [{ bulletPoint: "Test" }],
-  landingPage: {
-    productDescription: "Test",
-  },
 };
 
 function TrackButton() {
@@ -104,20 +82,15 @@ function TrackButton() {
   );
 }
 
-function renderProvider(
-  overrides?: Partial<typeof mockUserContext>,
-  authValue: AuthenticatedContextValue = authenticatedAuthValue,
-) {
+function renderProvider(overrides?: Partial<typeof mockUserContext>) {
   const userCtx = { ...mockUserContext, ...overrides };
 
   return render(
-    <AuthenticatedContext.Provider value={authValue}>
-      <UserContext.Provider value={userCtx}>
-        <AnalyticsProvider>
-          <TrackButton />
-        </AnalyticsProvider>
-      </UserContext.Provider>
-    </AuthenticatedContext.Provider>,
+    <UserContext.Provider value={userCtx}>
+      <AnalyticsProvider>
+        <TrackButton />
+      </AnalyticsProvider>
+    </UserContext.Provider>,
   );
 }
 
@@ -453,63 +426,6 @@ describe("AnalyticsProvider", () => {
 
     await new Promise((r) => setTimeout(r, 50));
 
-    expect(marketoCalls).toHaveLength(0);
-
-    fetchSpy.mockRestore();
-  });
-
-  it("skips uiconfig, identify, group, and Marketo when unauthenticated", async () => {
-    const uiconfigCalls: string[] = [];
-    const mockTrack = vi.fn();
-    const mockIdentify = vi.fn();
-    const mockGroup = vi.fn();
-    const marketoCalls: string[] = [];
-    const originalFetch = globalThis.fetch;
-    const fetchSpy = vi
-      .spyOn(globalThis, "fetch")
-      .mockImplementation(async (input, init) => {
-        const url = typeof input === "string" ? input : input.toString();
-        if (url.includes("/uiconfig")) {
-          uiconfigCalls.push(url);
-        }
-        if (url === "https://webhooks.example.com/sandbox") {
-          marketoCalls.push(url);
-          return new Response(null, { status: 200 });
-        }
-        return originalFetch(input, init as RequestInit);
-      });
-
-    (AnalyticsBrowser.load as ReturnType<typeof vi.fn>).mockReturnValue({
-      track: mockTrack,
-      identify: mockIdentify,
-      group: mockGroup,
-    });
-
-    server.use(
-      http.get(
-        "https://registration.example.com/api/v1/analytics/segment-write-key",
-        () => HttpResponse.text("key"),
-      ),
-    );
-
-    renderProvider({}, unauthenticatedAuthValue);
-
-    await waitFor(() => {
-      expect(AnalyticsBrowser.load).toHaveBeenCalled();
-    });
-
-    const user = userEvent.setup();
-    await user.click(screen.getByTestId("track-catalog"));
-
-    // Segment track should still fire.
-    expect(mockTrack).toHaveBeenCalled();
-
-    // No /uiconfig fetch, identify, group, or Marketo event
-    // should fire for unauthenticated users.
-    await new Promise((r) => setTimeout(r, 50));
-    expect(uiconfigCalls).toHaveLength(0);
-    expect(mockIdentify).not.toHaveBeenCalled();
-    expect(mockGroup).not.toHaveBeenCalled();
     expect(marketoCalls).toHaveLength(0);
 
     fetchSpy.mockRestore();

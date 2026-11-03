@@ -70,18 +70,4 @@ export type Product = {
    * The description of the characteristics of this product.
    */
   description: ProductDescription[];
-  /**
-   * Landing page specific product details.
-   */
-  landingPage: {
-    /**
-     * Should the product be shown in the landing page? Defaults to `true`,
-     * unless `false` is specifically set.
-     */
-    isShownInLandingPage?: boolean;
-    /**
-     * A one-liner describing the product.
-     */
-    productDescription?: string;
-  };
 };

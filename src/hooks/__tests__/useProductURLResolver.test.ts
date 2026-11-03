@@ -32,7 +32,6 @@ function makeProduct(overrides: Partial<Product> = {}): Product {
     title: "Test Product",
     image: "",
     description: [],
-    landingPage: {},
     ...overrides,
   };
 }

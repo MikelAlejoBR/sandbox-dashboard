@@ -258,11 +258,6 @@ export function AnsibleCatalogCard({
   // longer than anticipated. Basically it will trigger the AAP
   // instance provisioning and open the Ansible information modal.
   useEffect(() => {
-    // Do not register any actions if the user is unauthenticated.
-    if (userSignupPhase === UserSignupPhase.UNAUTHENTICATED) {
-      return;
-    }
-
     registerAction({
       product,
       requiresUserGesture: false,
@@ -287,7 +282,6 @@ export function AnsibleCatalogCard({
    */
   const handleOnClickPrimaryButton = useCallback(() => {
     switch (userSignupPhase) {
-      case UserSignupPhase.UNAUTHENTICATED:
       case UserSignupPhase.NOT_STARTED:
       case UserSignupPhase.SIGNING_UP:
       case UserSignupPhase.PROVISIONING:

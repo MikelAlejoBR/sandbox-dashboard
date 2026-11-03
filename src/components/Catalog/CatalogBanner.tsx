@@ -14,7 +14,6 @@ import ExternalLinkAltIcon from "@patternfly/react-icons/dist/esm/icons/external
 
 import AutomationIllustration from "../../assets/images/banner/rh-automation-general-illustration.svg";
 import WorkFromHomeIllustration from "../../assets/images/banner/rh-work-from-home-illustration.svg";
-import { useAuth } from "../../auth/AuthenticatedContext";
 import { useUserContext } from "../../hooks/UserContext";
 import { calculateDaysBetweenDates } from "../../utils/common";
 import { type BannerContent, resolveBannerContent } from "./bannerContent";
@@ -22,7 +21,6 @@ import { CatalogBannerSkeleton } from "./CatalogBannerSkeleton";
 import { CatalogBannerTrialExpirationPopover } from "./CatalogBannerTrialExpirationPopover";
 
 export function CatalogBanner() {
-  const auth = useAuth();
   const { user, userSignupPhase } = useUserContext();
 
   // Calculate the number of days that are left in the trial.
@@ -32,7 +30,6 @@ export function CatalogBanner() {
 
   // Resolve which content we are going to show in the banner.
   const bannerContent: BannerContent | undefined = resolveBannerContent(
-    auth.authenticated,
     userSignupPhase,
     user,
     daysLeft,

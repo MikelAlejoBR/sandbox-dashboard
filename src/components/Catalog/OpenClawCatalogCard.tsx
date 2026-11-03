@@ -229,11 +229,6 @@ export function OpenClawCatalogCard({
   // Register the action for the OpenClaw catalog card in case the
   // user signup takes longer than expected.
   useEffect(() => {
-    // Do not register any actions if the user is unauthenticated.
-    if (userSignupPhase === UserSignupPhase.UNAUTHENTICATED) {
-      return;
-    }
-
     registerAction({
       product,
       requiresUserGesture: false,
@@ -258,7 +253,6 @@ export function OpenClawCatalogCard({
    */
   const handleOnClickPrimaryButton = useCallback(() => {
     switch (userSignupPhase) {
-      case UserSignupPhase.UNAUTHENTICATED:
       case UserSignupPhase.NOT_STARTED:
       case UserSignupPhase.SIGNING_UP:
       case UserSignupPhase.PROVISIONING:

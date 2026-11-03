@@ -3,10 +3,7 @@ import Keycloak from "keycloak-js";
 import { setTokenGetter } from "../api/authFetch";
 import { type AppConfig, Environment } from "../config/config";
 import type { AuthConfigResponse, KeycloakClientConfig } from "../types";
-import { deleteCookie, getCookie, setCookie } from "../utils/cookie-utils";
-import type { AuthenticatedContextValue } from "./AuthenticatedContext";
-
-export const SESSION_HINT_COOKIE_NAME = "rh_sd_session_hint";
+import type { AuthenticatedUser } from "./AuthenticatedContext";
 
 /**
  * Fetches the Keycloak client's configuration from the registration service.
@@ -108,17 +105,14 @@ export async function createAndConfigureKeycloak(
 }
 
 /**
- * Initializes the Keycloak connector and triggers the SSO login flow. On
- * success, it sets up a hint cookie so that we can identify, on subsequent
- * visits, if the user has already been logged in.
+ * Initializes the Keycloak connector and triggers the SSO login flow.
  *
  * @param keycloak The configured Keycloak connector's instance.
- * @returns an {@link AuthenticatedContextValue} with the user's information
- * extracted from the authentication token.
+ * @returns the signed-in user extracted from the authentication token.
  */
 async function initializeKeycloak(
   keycloak: Keycloak,
-): Promise<AuthenticatedContextValue> {
+): Promise<AuthenticatedUser> {
   // Authenticate the user.
   const authenticated = await keycloak.init({
     checkLoginIframe: false,
@@ -135,27 +129,6 @@ async function initializeKeycloak(
     throw new Error("Authentication failed");
   }
 
-  // Set up a cookie hint so that we know, on the next page visit, that the
-  // user was authenticated and so that we can perform the whole SSO flow
-  // directly, without sending the user to the landing page.
-  //
-  // We set the cookie to expire in a year, so that the user does not see the
-  // landing page again for a while. The expectation is that once the user is
-  // signed up, we will update the cookie's expiration and set it to the
-  // user's trial expiration date.
-  //
-  // The reason for that is that they will nonetheless will have to go back
-  // and trigger another signup then, and until that happens their user will
-  // not be in a "READY" state anyway.
-  //
-  // Also, we make sure not to overwrite the cookie here if it already exists,
-  // to preserve the expiration date that was set in the past. The user
-  // signup's end date might or might not override it later, but in any case
-  // we will not blindly overwrite it here.
-  if (getCookie(SESSION_HINT_COOKIE_NAME) !== "true") {
-    setCookie(SESSION_HINT_COOKIE_NAME, "true", 31_536_000);
-  }
-
   // Use Keycloak's token utilities as the "token getter" for the
   // authenticated fetch calls.
   setTokenGetter(async (): Promise<string> => {
@@ -166,12 +139,10 @@ async function initializeKeycloak(
   // Obtain the claims that we use on our application.
   const parsedToken = keycloak.tokenParsed ?? {};
   return {
-    authenticated: true,
     email: (parsedToken.email as string) ?? "",
     familyName: (parsedToken.family_name as string) ?? "",
     givenName: (parsedToken.given_name as string) ?? "",
     logout: () => {
-      deleteCookie(SESSION_HINT_COOKIE_NAME);
       keycloak.logout();
     },
     token: keycloak.token,

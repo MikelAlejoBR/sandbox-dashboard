@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 type FrequentlyAskedQuestion = {
   question: string;
   answer: ReactNode;
-  shouldBeVisibleLandingPage?: boolean;
 };
 
 export const frequentlyAskedQuestions: FrequentlyAskedQuestion[] = [
