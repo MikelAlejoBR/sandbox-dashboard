@@ -141,12 +141,17 @@ export const registrationMockHandlers: RequestHandler[] = [
 
   http.post("*/api/v1/signup/verification/activation-code", () => {
     if (getPlaywrightOverrides()?.__activationCode__?.__forceError__) {
-      return new HttpResponse(null, { status: 500 });
+      // An invalid activation code is rejected with 403. The body text
+      // is what the dialog maps to the invalid-code alert.
+      return HttpResponse.json(
+        { message: "the provided code is invalid" },
+        { status: 403 },
+      );
     }
 
     // Set READY immediately. Unlike phone verification, a NOT_STARTED user
-    // is not polled, so CatalogPage's refetch after onVerified must already
-    // see a ready signup.
+    // is not polled, so the dialog's refetch must already see a ready
+    // signup.
     userSignupState.setPhase(UserSignupPhase.READY);
     return new HttpResponse(null, { status: 200 });
   }),

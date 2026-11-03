@@ -104,7 +104,8 @@ export interface PlaywrightOverrides {
    */
   __activationCode__?: {
     /**
-     * Forces an error when the user submits an activation code.
+     * When set, submitting an activation code fails with HTTP 403 and
+     * a body the dialog maps to the invalid-code alert.
      */
     __forceError__?: boolean;
   };

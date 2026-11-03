@@ -1,3 +1,4 @@
+import { ActivationCodeLink } from "./ActivationCodeLink";
 import { CatalogBanner } from "./CatalogBanner";
 import { CatalogGrid } from "./CatalogGrid";
 
@@ -8,6 +9,7 @@ export function CatalogPage() {
       <div style={{ padding: "0 100px 0 100px", minHeight: "100%" }}>
         <CatalogGrid />
       </div>
+      <ActivationCodeLink />
     </>
   );
 }
