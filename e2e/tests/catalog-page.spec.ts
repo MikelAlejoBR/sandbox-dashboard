@@ -70,6 +70,18 @@ test.describe("Catalog page", () => {
             .getByRole("article", { name: "OpenShift product card" })
             .getByRole("button", { name: "Try it" }),
         ).toBeVisible();
+        await expect(
+          page
+            .getByRole("article", { name: "OpenClaw product card" })
+            .getByRole("button", { name: "Set up" }),
+        ).toBeVisible();
+        await expect(
+          page
+            .getByRole("article", {
+              name: "Ansible Automation Platform product card",
+            })
+            .getByRole("button", { name: "Set up" }),
+        ).toBeVisible();
 
         // An activation code is only useful before signup starts.
         await expect(
@@ -189,10 +201,10 @@ test.describe("Catalog page", () => {
         { productTitle: "Dev Spaces", buttonTitle: "Try it" },
         {
           productTitle: "Ansible Automation Platform",
-          buttonTitle: "Provision",
+          buttonTitle: "Set up",
         },
         { productTitle: "OpenShift Virtualization", buttonTitle: "Try it" },
-        { productTitle: "OpenClaw", buttonTitle: "Provision" },
+        { productTitle: "OpenClaw", buttonTitle: "Set up" },
         { productTitle: "Red Hat Developer Hub", buttonTitle: "Try it" },
       ];
 

@@ -357,8 +357,8 @@ export function AnsibleProviderConnected({
       });
 
       throw new UserFacingError(
-        "Unable to provision your Ansible Automation Platform instance",
-        "We were unable to provision your Ansible Automation Platform instance. Please try again later.",
+        "Unable to set up your Ansible Automation Platform instance",
+        "We were unable to set up your Ansible Automation Platform instance. Please try again later.",
         error,
         `Unable to create the AAP instance for the user: the CR creation failed: ${error}`,
       );
@@ -379,8 +379,8 @@ export function AnsibleProviderConnected({
       // Keep the instance in "idled" status and tell the user that we
       // could not unidle it for them.
       throw new UserFacingError(
-        "Unable to reprovision your Ansible Automation Platform instance",
-        "We were unable to reprovision your Ansible Automation Platform instance. Please try again later.",
+        "Unable to resume your Ansible Automation Platform instance",
+        "We were unable to resume your Ansible Automation Platform instance. Please try again later.",
         error,
         `Unable to handle AAP instance for the user: unidling the instance failed: ${error}`,
       );
@@ -444,7 +444,7 @@ export function AnsibleProviderConnected({
       });
       throw new UserFacingError(
         "Unable to fully delete your AAP instance",
-        `We have been able to successfully delete your AAP instance, but some internal errors might prevent you from reprovisioning it again. Please contact support at ${SUPPORT_EMAIL}.`,
+        `We have been able to successfully delete your AAP instance, but some internal errors might prevent you from setting it up again. Please contact support at ${SUPPORT_EMAIL}.`,
         undefined,
         `Unable to fully delete AAP instance: the deletion of the related resources failed: ${cleanupError.toString()}`,
       );
@@ -486,8 +486,8 @@ export function AnsibleProviderConnected({
             updateInstanceCR(result.cr);
             addAlertFromError(
               new UserFacingError(
-                "Ansible Automation Platform instance is not properly provisioned",
-                `We have detected that your Ansible Automation Platform instance is not successfully provisioned. Please, either delete it and try again later, or contact ${SUPPORT_EMAIL}.`,
+                "Ansible Automation Platform instance is not properly set up",
+                `We have detected that your Ansible Automation Platform instance is not successfully set up. Please, either delete it and try again later, or contact ${SUPPORT_EMAIL}.`,
                 undefined,
                 `The AAP instance reports the following failed condition: ${JSON.stringify(result.failedCondition)}`,
               ),
@@ -576,20 +576,20 @@ export function AnsibleProviderConnected({
         case "deleting":
           return {
             titleVerb: "delete",
-            descriptionVerb: "deletion",
+            descriptionVerb: "deleting",
             errorType: AAPInstanceErrorType.DELETING_POLLING_REPORTS_FAILURE,
           };
         case "provisioning":
           return {
-            titleVerb: "provision",
-            descriptionVerb: "provisioning",
+            titleVerb: "set up",
+            descriptionVerb: "setting up",
             errorType:
               AAPInstanceErrorType.PROVISIONING_POLLING_REPORTS_FAILURE,
           };
         case "unidling":
           return {
-            titleVerb: "reprovision",
-            descriptionVerb: "reprovisioning",
+            titleVerb: "resume",
+            descriptionVerb: "resuming",
             errorType: AAPInstanceErrorType.UNIDLING_POLLING_REPORTS_FAILURE,
           };
       }
@@ -646,7 +646,7 @@ export function AnsibleProviderConnected({
         addAlertFromError(
           new UserFacingError(
             `Unable to ${titleVerb} your Ansible Automation Platform instance`,
-            `Unfortunately, the ${descriptionVerb} of your Ansible Automation Platform instance failed. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
+            `Unfortunately, ${descriptionVerb} your Ansible Automation Platform instance failed. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
             error,
             `${error}`,
           ),
@@ -682,9 +682,9 @@ export function AnsibleProviderConnected({
         addAlertFromError(
           new UserFacingError(
             `Unable to ${titleVerb} your AAP instance`,
-            `Unfortunately, an internal error occurred that prevented from ${descriptionVerb} your Ansible Automation Platform instance. Please contact ${SUPPORT_EMAIL}.`,
+            `Unfortunately, an internal error occurred that prevented us from ${descriptionVerb} your Ansible Automation Platform instance. Please contact ${SUPPORT_EMAIL}.`,
             undefined,
-            "During provisioning/reprovisioning, a fetch call returned no CR",
+            "During setup or resume, a fetch call returned no CR",
           ),
         );
 
@@ -714,9 +714,9 @@ export function AnsibleProviderConnected({
         addAlertFromError(
           new UserFacingError(
             `Unable to ${titleVerb} your AAP instance`,
-            `Unfortunately, an internal error occurred that prevented from ${descriptionVerb} your Ansible Automation Platform instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
+            `Unfortunately, an internal error occurred that prevented us from ${descriptionVerb} your Ansible Automation Platform instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
             undefined,
-            `During provisioning/reprovisioning, the instance ended in a failed condition: ${JSON.stringify(result.failedCondition)}`,
+            `During setup or resume, the instance ended in a failed condition: ${JSON.stringify(result.failedCondition)}`,
           ),
         );
         updateInstanceStatus({

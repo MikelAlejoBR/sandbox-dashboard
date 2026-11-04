@@ -242,7 +242,7 @@ describe("OpenClawCatalogCard", () => {
       unidleInstance,
     });
 
-    await userEvent.click(getPrimaryButton("Re-provision"));
+    await userEvent.click(getPrimaryButton("Resume"));
 
     expect(unidleInstance).toHaveBeenCalledWith();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
@@ -251,7 +251,7 @@ describe("OpenClawCatalogCard", () => {
   it("opens info modal when status is PROVISIONING", async () => {
     renderCard({ status: OpenClawStatus.PROVISIONING });
 
-    await userEvent.click(getPrimaryButton(/Provisioning/));
+    await userEvent.click(getPrimaryButton(/Setting up/));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
@@ -259,7 +259,7 @@ describe("OpenClawCatalogCard", () => {
   it("opens info modal when status is NEW (provision flow)", async () => {
     renderCard({ status: OpenClawStatus.NEW });
 
-    await userEvent.click(getPrimaryButton("Provision"));
+    await userEvent.click(getPrimaryButton("Set up"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
@@ -269,7 +269,7 @@ describe("OpenClawCatalogCard", () => {
     const startProvisioning = vi.fn().mockResolvedValue(undefined);
     renderCard({ status: OpenClawStatus.NEW, startProvisioning });
 
-    await user.click(getPrimaryButton("Provision"));
+    await user.click(getPrimaryButton("Set up"));
 
     const providerInput = screen.getByPlaceholderText(
       "Select or type an AI provider",
@@ -293,7 +293,7 @@ describe("OpenClawCatalogCard", () => {
   it("opens info modal when status is FAILED", async () => {
     renderCard({ status: OpenClawStatus.FAILED });
 
-    await userEvent.click(getPrimaryButton("Provision"));
+    await userEvent.click(getPrimaryButton("Set up"));
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
@@ -339,7 +339,7 @@ describe("OpenClawCatalogCard", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("does not call unidleInstance or open modal when status is USER_NOT_READY", async () => {
+  it("shows 'Set up' and does not open the modal when status is USER_NOT_READY", async () => {
     const unidleInstance = vi.fn().mockResolvedValue(undefined);
 
     renderCard({
@@ -347,9 +347,28 @@ describe("OpenClawCatalogCard", () => {
       unidleInstance,
     });
 
-    await userEvent.click(getPrimaryButton("Try it"));
+    const button = getPrimaryButton("Set up");
+    expect(button.textContent).toContain("Set up");
+
+    await userEvent.click(button);
 
     expect(unidleInstance).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("starts signup from 'Set up' when the user has not signed up", async () => {
+    const signupAndRun = vi.fn();
+
+    renderCard(
+      { status: OpenClawStatus.USER_NOT_READY },
+      undefined,
+      { userSignupPhase: UserSignupPhase.NOT_STARTED },
+      { signupAndRun },
+    );
+
+    await userEvent.click(getPrimaryButton("Set up"));
+
+    expect(signupAndRun).toHaveBeenCalledWith(ProductType.OPENCLAW);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 

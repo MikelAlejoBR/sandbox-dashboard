@@ -4,10 +4,16 @@
 export enum ButtonLabel {
   LOADING = "Loading",
   TRY_IT = "Try it",
-  PROVISION = "Provision",
+  SET_UP = "Set up",
+  SETTING_UP = "Setting up...",
+  /**
+   * Developer Hub still uses this while the sandbox namespace is
+   * being created. Ansible and OpenClaw use {@link SETTING_UP}.
+   */
   PROVISIONING = "Provisioning...",
   LAUNCH = "Launch",
-  REPROVISION = "Re-provision",
+  RESUME = "Resume",
+  RESUMING = "Resuming...",
   DELETING = "Deleting...",
 }
 
@@ -27,5 +33,12 @@ export enum StatusColor {
  */
 export type StatusLabel = {
   color: StatusColor;
-  label: "Loading" | "Provisioning" | "Ready" | "Idled" | "Deleting" | "Failed";
+  label:
+    | "Loading"
+    | "Setting up"
+    | "Ready"
+    | "Stopped"
+    | "Resuming"
+    | "Deleting"
+    | "Failed";
 };

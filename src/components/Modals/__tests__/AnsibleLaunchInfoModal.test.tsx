@@ -74,7 +74,7 @@ describe("AnsibleLaunchInfoModal", () => {
     renderModal({ instanceStatus: { kind: "ready" } });
 
     await waitFor(() => {
-      expect(screen.getByText(/instance provisioned/)).toBeInTheDocument();
+      expect(screen.getByText(/instance is ready/)).toBeInTheDocument();
     });
     expect(screen.getByText(/two different accounts/)).toBeInTheDocument();
   });
@@ -159,33 +159,25 @@ describe("AnsibleLaunchInfoModal", () => {
   it("shows provisioning spinner when AAP is provisioning", () => {
     renderModal({ instanceStatus: { kind: "provisioning" } });
 
-    expect(
-      screen.getByText(/instance is being provisioned/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/instance is being set up/)).toBeInTheDocument();
   });
 
   it("shows provisioning spinner when AAP status is 'new'", () => {
     renderModal({ instanceStatus: { kind: "new" } });
 
-    expect(
-      screen.getByText(/instance is being provisioned/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/instance is being set up/)).toBeInTheDocument();
   });
 
-  it("shows provisioning spinner when AAP status is 'idled'", () => {
+  it("shows the resume message when AAP status is 'idled'", () => {
     renderModal({ instanceStatus: { kind: "idled" } });
 
-    expect(
-      screen.getByText(/instance is being provisioned/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/instance is resuming/)).toBeInTheDocument();
   });
 
   it("shows unidling spinner when AAP is unidling", () => {
     renderModal({ instanceStatus: { kind: "unidling" } });
 
-    expect(
-      screen.getByText(/instance is being reprovisioned/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/instance is resuming/)).toBeInTheDocument();
   });
 
   it("shows error modal when a provisioningError is provided", () => {
@@ -255,9 +247,7 @@ describe("AnsibleLaunchInfoModal", () => {
       fetchInstanceCredentials,
     });
 
-    expect(
-      screen.getByText(/obtaining your provisioned instance/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/obtaining your instance/)).toBeInTheDocument();
   });
 
   it("shows error modal with UserFacingError.detail when credential fetching fails with UserFacingError", async () => {
@@ -334,13 +324,11 @@ describe("AnsibleLaunchInfoModal", () => {
   it("does not show provisioned content when status is 'deleting'", () => {
     renderModal({ instanceStatus: { kind: "deleting" } });
 
-    expect(screen.queryByText(/instance provisioned/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/instance is ready/)).not.toBeInTheDocument();
     expect(
-      screen.queryByText(/instance is being provisioned/),
+      screen.queryByText(/instance is being set up/),
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/instance is being reprovisioned/),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/instance is resuming/)).not.toBeInTheDocument();
   });
 
   it("shows Close button when status is 'deleting'", () => {

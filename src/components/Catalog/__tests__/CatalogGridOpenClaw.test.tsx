@@ -153,14 +153,14 @@ describe("CatalogGrid – OpenClaw card rendering", () => {
     expect(mainButton).toBeDisabled();
   });
 
-  it("shows 'Provisioning...' on main button when OpenClaw status is PROVISIONING", () => {
+  it("shows 'Setting up...' on main button when OpenClaw status is PROVISIONING", () => {
     renderGrid({ status: OpenClawStatus.PROVISIONING });
 
     const card = getOpenClawCard();
     const mainButton = within(card).getByRole("button", {
-      name: /Provisioning/,
+      name: /Setting up/,
     });
-    expect(mainButton.textContent).toContain("Provisioning...");
+    expect(mainButton.textContent).toContain("Setting up...");
   });
 
   it("renders 'Ready' status label on OpenClaw card when status is READY", () => {
@@ -173,27 +173,27 @@ describe("CatalogGrid – OpenClaw card rendering", () => {
     expect(mainButton.textContent).toContain("Launch");
   });
 
-  it("renders 'Idled' status label on OpenClaw card when status is IDLED", () => {
+  it("renders 'Stopped' status label on OpenClaw card when status is IDLED", () => {
     renderGrid({ status: OpenClawStatus.IDLED });
 
     const card = getOpenClawCard();
-    expect(card.textContent).toContain("Idled");
+    expect(card.textContent).toContain("Stopped");
 
     const mainButton = within(card).getByRole("button", {
-      name: "Re-provision",
+      name: "Resume",
     });
-    expect(mainButton.textContent).toContain("Re-provision");
+    expect(mainButton.textContent).toContain("Resume");
   });
 
-  it("renders 'Failed' status label and 'Provision' button on OpenClaw card when status is FAILED", () => {
+  it("renders 'Failed' status label and 'Set up' button on OpenClaw card when status is FAILED", () => {
     renderGrid({ status: OpenClawStatus.FAILED });
 
     const card = getOpenClawCard();
     expect(card.textContent).toContain("Failed");
 
-    const mainButton = within(card).getByRole("button", { name: "Provision" });
-    expect(mainButton.textContent).toContain("Provision");
-    expect(mainButton.textContent).not.toContain("Provisioning");
+    const mainButton = within(card).getByRole("button", { name: "Set up" });
+    expect(mainButton.textContent).toContain("Set up");
+    expect(mainButton.textContent).not.toContain("Setting up");
 
     expect(
       within(card).getByRole("button", { name: "Delete instance" }),
@@ -212,7 +212,7 @@ describe("CatalogGrid – OpenClaw card rendering", () => {
 
     const card = getOpenClawCard();
     const mainButton = within(card).getByRole("button", {
-      name: /Provisioning/,
+      name: /Setting up/,
     });
     expect(mainButton).not.toBeDisabled();
   });

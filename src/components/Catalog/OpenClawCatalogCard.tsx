@@ -29,19 +29,22 @@ function getButtonLabel(status: OpenClawStatus): ButtonLabel {
     case OpenClawStatus.INITIAL_FETCH:
       return ButtonLabel.LOADING;
 
+    case OpenClawStatus.USER_NOT_READY:
     case OpenClawStatus.NEW:
     case OpenClawStatus.FAILED:
-      return ButtonLabel.PROVISION;
+      return ButtonLabel.SET_UP;
 
     case OpenClawStatus.PROVISIONING:
+      return ButtonLabel.SETTING_UP;
+
     case OpenClawStatus.UNIDLING:
-      return ButtonLabel.PROVISIONING;
+      return ButtonLabel.RESUMING;
 
     case OpenClawStatus.READY:
       return ButtonLabel.LAUNCH;
 
     case OpenClawStatus.IDLED:
-      return ButtonLabel.REPROVISION;
+      return ButtonLabel.RESUME;
 
     case OpenClawStatus.DELETING:
       return ButtonLabel.DELETING;
@@ -73,13 +76,13 @@ function getStatusLabel(status: OpenClawStatus): StatusLabel | undefined {
     case OpenClawStatus.INITIAL_FETCH:
       return { label: "Loading", color: StatusColor.BLUE };
     case OpenClawStatus.PROVISIONING:
-      return { label: "Provisioning", color: StatusColor.BLUE };
+      return { label: "Setting up", color: StatusColor.BLUE };
     case OpenClawStatus.READY:
       return { label: "Ready", color: StatusColor.GREEN };
     case OpenClawStatus.IDLED:
-      return { label: "Idled", color: StatusColor.ORANGE };
+      return { label: "Stopped", color: StatusColor.ORANGE };
     case OpenClawStatus.UNIDLING:
-      return { label: "Provisioning", color: StatusColor.BLUE };
+      return { label: "Resuming", color: StatusColor.BLUE };
     case OpenClawStatus.DELETING:
       return { label: "Deleting", color: StatusColor.RED };
     case OpenClawStatus.FAILED:
@@ -154,7 +157,8 @@ export function OpenClawCatalogCard({
   const isPrimaryButtonSpinnerVisible =
     buttonLabel === ButtonLabel.LOADING ||
     buttonLabel === ButtonLabel.DELETING ||
-    buttonLabel === ButtonLabel.PROVISIONING ||
+    buttonLabel === ButtonLabel.SETTING_UP ||
+    buttonLabel === ButtonLabel.RESUMING ||
     userSignupPhase === UserSignupPhase.INITIAL_FETCH;
   const isPrimaryButtonExtIconVisible =
     buttonLabel === ButtonLabel.LAUNCH ||
@@ -192,8 +196,8 @@ export function OpenClawCatalogCard({
 
   /**
    * Once the user signup is ready, it handles opening the OpenClaw
-   * instance's URL, reprovisioning the instance if it's idled or
-   * opens the modal to provision it otherwise.
+   * instance's URL, resuming the instance if it is stopped, or
+   * opens the modal to set it up otherwise.
    */
   const handleReadyPrimaryAction = useCallback(async () => {
     switch (status) {
@@ -212,8 +216,8 @@ export function OpenClawCatalogCard({
         } catch (error) {
           handleOpenClawApiError(
             error,
-            "Unable to reprovision your instance",
-            `An unexpected error occurred while reprovisioning your OpenClaw instance. Please try again later, and if the issue persists, contact ${SUPPORT_EMAIL}.`,
+            "Unable to resume your instance",
+            `An unexpected error occurred while resuming your OpenClaw instance. Please try again later, and if the issue persists, contact ${SUPPORT_EMAIL}.`,
           );
         } finally {
           openClawUnidleInFlight.current = false;
@@ -297,8 +301,8 @@ export function OpenClawCatalogCard({
       } catch (error) {
         handleOpenClawApiError(
           error,
-          "Unable to provision your OpenClaw instance",
-          `An unexpected error occurred while provisioning your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
+          "Unable to set up your OpenClaw instance",
+          `An unexpected error occurred while setting up your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
         );
       } finally {
         openClawProvisionInFlight.current = false;

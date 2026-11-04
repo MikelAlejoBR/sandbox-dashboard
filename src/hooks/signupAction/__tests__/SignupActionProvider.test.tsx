@@ -668,6 +668,12 @@ describe("SignupActionProvider", () => {
     });
 
     it("opens the modal when a gesture-independent action exceeds the watcher timeout", async () => {
+      // shouldAdvanceTime moves the fake clock with wall time.
+      // Under load that drift crosses the one-interval margin
+      // and opens the modal before the timeout step below.
+      // Manual mode keeps advanceTimersByTimeAsync exact.
+      vi.setTimerTickMode("manual");
+
       mockUserActivation(false);
 
       const onReady = vi.fn();

@@ -285,16 +285,16 @@ workloads in \`-dev\`. This is normal — not a crash, not an error.
 
 What happens:
 - Your pod stops. The PVC (your workspace, memory, config) is preserved.
-- To unidle OpenClaw, the user goes to the Dev Sandbox dashboard
-  (sandbox.redhat.com) and clicks "Re-provision" on the OpenClaw card.
+- The OpenClaw card on the Dev Sandbox dashboard (sandbox.redhat.com)
+  shows "Stopped". The user clicks "Resume" to start it again.
 - For workloads in \`-dev\`, the user must manually scale them back up
   (via the OpenShift web console or \`oc scale\`).
 - You resume with your full workspace intact (IDENTITY.md, MEMORY.md, etc.).
 
 If the user asks "why did you restart?" or "why were you down?", common
 reasons include:
-- The 12-hour idle timeout (requires user action to unidle — most likely
-  if there was a long gap)
+- The 12-hour idle timeout (the dashboard shows Stopped and needs a
+  Resume click — most likely if there was a long gap)
 - A Claw CR change that triggered an automatic pod restart (config,
   credentials, etc.) — these are seamless, no user action needed
 - Transient cluster events (node maintenance, resource pressure)
