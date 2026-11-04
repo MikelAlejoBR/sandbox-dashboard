@@ -87,11 +87,21 @@ export function OpenClawLaunchInfoModal({
   };
 
   // Show an error modal if any error has occurred during the provisioning or
-  // the unidling of the instance.
+  // the unidling of the instance. A failed resume moves the instance to
+  // FAILED, so the error title is what still identifies that action.
   if (provisioningError) {
+    const isResumeFailure =
+      provisioningError.title === "Unable to resume your OpenClaw instance";
+    const headerTitle =
+      status === OpenClawStatus.IDLED ||
+      status === OpenClawStatus.UNIDLING ||
+      isResumeFailure
+        ? "Resume OpenClaw instance"
+        : "Set up OpenClaw instance";
+
     return (
       <ErrorModal
-        headerTitle="Provision OpenClaw instance"
+        headerTitle={headerTitle}
         productName="OpenClaw"
         alertTitle={provisioningError.title}
         alertText={provisioningError.detail}
@@ -128,7 +138,7 @@ export function OpenClawLaunchInfoModal({
               </FlexItem>
               <FlexItem>
                 <span style={{ fontSize: "24px", fontWeight: 700 }}>
-                  OpenClaw instance provisioned
+                  OpenClaw instance is ready
                 </span>
               </FlexItem>
             </Flex>
@@ -175,29 +185,31 @@ export function OpenClawLaunchInfoModal({
     status === OpenClawStatus.PROVISIONING ||
     status === OpenClawStatus.UNIDLING
   ) {
-    const verb =
-      status === OpenClawStatus.PROVISIONING
-        ? "Provisioning"
-        : "Reprovisioning";
+    const progressLabel =
+      status === OpenClawStatus.PROVISIONING ? "Setting up" : "Resuming";
 
     return (
       <Modal
         isOpen={isOpen}
         onClose={handleClose}
-        aria-label={`${verb} your OpenClaw instance`}
+        aria-label={`${progressLabel} your OpenClaw instance`}
         variant="medium"
         data-testid="openclaw-launch-modal"
       >
-        <ModalHeader title={`${verb} OpenClaw instance`} />
+        <ModalHeader title={`${progressLabel} OpenClaw instance`} />
         <ModalBody>
           <Content component="p" style={{ marginBottom: "24px" }}>
-            {verb} is in progress. When ready, your instance will be available
-            for use.
+            {progressLabel} is in progress. When ready, your instance will be
+            available for use.
           </Content>
           <div style={{ textAlign: "center", padding: "24px 0" }}>
             <Spinner size="xl" />
           </div>
-          <Alert variant="info" isInline title={`${verb} can take 1-5 minutes`}>
+          <Alert
+            variant="info"
+            isInline
+            title={`${progressLabel} can take 1-5 minutes`}
+          >
             You can close this modal in the meantime, and follow the status of
             your instance on the OpenClaw sandbox card.
           </Alert>
@@ -215,15 +227,14 @@ export function OpenClawLaunchInfoModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      aria-label="Provision OpenClaw instance"
+      aria-label="Set up OpenClaw instance"
       variant="medium"
       data-testid="openclaw-launch-modal"
     >
-      <ModalHeader title="Provision OpenClaw instance" />
+      <ModalHeader title="Set up OpenClaw instance" />
       <ModalBody>
         <Content component="p" style={{ marginBottom: "16px" }}>
-          Configure your AI provider credentials to provision an OpenClaw
-          instance.
+          Configure your AI provider credentials to set up an OpenClaw instance.
         </Content>
         <CredentialAccordion
           key={accordionKey}
@@ -235,7 +246,7 @@ export function OpenClawLaunchInfoModal({
         <Tooltip
           content={
             credentialCount === 0
-              ? "Please add an AI provider credential to provision your OpenClaw instance"
+              ? "Please add an AI provider credential to set up your OpenClaw instance"
               : ""
           }
           trigger={credentialCount === 0 ? "mouseenter" : "manual"}
@@ -247,7 +258,7 @@ export function OpenClawLaunchInfoModal({
             isLoading={isSubmitting}
             data-testid="openclaw-provision-button"
           >
-            Provision
+            Set up
           </Button>
         </Tooltip>
         <Button variant="link" onClick={handleClose}>

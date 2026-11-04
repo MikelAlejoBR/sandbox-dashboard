@@ -1014,7 +1014,7 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.FAILED,
         );
         expect(screen.getByTestId("provisioning-error-title").textContent).toBe(
-          "Unable to provision your OpenClaw instance",
+          "Unable to set up your OpenClaw instance",
         );
       });
     });
@@ -1047,7 +1047,7 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.FAILED,
         );
         expect(screen.getByTestId("provisioning-error-title").textContent).toBe(
-          "Unable to provision your OpenClaw instance",
+          "Unable to set up your OpenClaw instance",
         );
       });
     });
@@ -1081,7 +1081,7 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.FAILED,
         );
         expect(screen.getByTestId("provisioning-error-title").textContent).toBe(
-          "Unable to provision your OpenClaw instance",
+          "Unable to set up your OpenClaw instance",
         );
       });
     });
@@ -1175,7 +1175,7 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.FAILED,
         );
         expect(screen.getByTestId("provisioning-error-title").textContent).toBe(
-          "Unable to provision your OpenClaw instance",
+          "Unable to set up your OpenClaw instance",
         );
       });
     });
@@ -1562,7 +1562,7 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.FAILED,
         );
         expect(screen.getByTestId("provisioning-error-title").textContent).toBe(
-          "Unable to provision your OpenClaw instance",
+          "Unable to set up your OpenClaw instance",
         );
       });
     });
@@ -1592,7 +1592,7 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.FAILED,
         );
         expect(screen.getByTestId("provisioning-error-title").textContent).toBe(
-          "Unable to provision your OpenClaw instance",
+          "Unable to set up your OpenClaw instance",
         );
       });
     });
@@ -1841,7 +1841,7 @@ describe("OpenClawProvider", () => {
       );
     });
 
-    it("sets provisioningError when non-transient error occurs during unidling polling", async () => {
+    it("sets a resume error when a non-transient error occurs during unidling polling", async () => {
       mockedGetSpaceRequest.mockResolvedValue(clawSpaceRequest);
       mockedGetOpenClaw.mockResolvedValue(openClawIdledFixture);
       mockedUnIdleOpenClaw.mockResolvedValue(undefined);
@@ -1876,7 +1876,7 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.FAILED,
         );
         expect(screen.getByTestId("provisioning-error-title").textContent).toBe(
-          "Unable to provision your OpenClaw instance",
+          "Unable to resume your OpenClaw instance",
         );
       });
     });
@@ -2435,7 +2435,7 @@ describe("OpenClawProvider", () => {
           OpenClawStatus.FAILED,
         );
         expect(screen.getByTestId("provisioning-error-title").textContent).toBe(
-          "Unable to provision your OpenClaw instance",
+          "Unable to set up your OpenClaw instance",
         );
       });
     });

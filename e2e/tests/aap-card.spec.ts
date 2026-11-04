@@ -29,14 +29,14 @@ test.describe(
       });
 
       // Click on the "Provision" button.
-      await aapProductCard.getByRole("button", { name: "Provision" }).click();
+      await aapProductCard.getByRole("button", { name: "Set up" }).click();
 
       const aapModal = page.getByRole("dialog", {
         name: "Ansible Automation Platform",
       });
       const spinner = aapModal.getByRole("progressbar", { name: "Contents" });
       const provisioningText = aapModal.getByText(
-        "Your Ansible Automation Platform instance is being provisioned",
+        "Your Ansible Automation Platform instance is being set up",
       );
 
       await expect(aapModal).toBeVisible();
@@ -49,7 +49,7 @@ test.describe(
 
       // Open the modal again.
       await aapProductCard
-        .getByRole("button", { name: "Loading... Provisioning..." })
+        .getByRole("button", { name: "Loading... Setting up..." })
         .click();
       await expect(aapModal).toBeVisible();
       await expect(spinner).toBeVisible();
@@ -63,7 +63,7 @@ test.describe(
       await expect(aapModal).not.toBeVisible();
 
       await aapProductCard
-        .getByRole("button", { name: "Loading... Provisioning..." })
+        .getByRole("button", { name: "Loading... Setting up..." })
         .click();
       await expect(aapModal).toBeVisible();
       await expect(spinner).toBeVisible();
@@ -80,7 +80,7 @@ test.describe(
       }, AAPMockPhase.PROVISIONING);
 
       await expect(
-        aapProductCard.getByText("Provisioning", { exact: true }),
+        aapProductCard.getByText("Setting up", { exact: true }),
       ).toBeVisible();
     });
 
@@ -92,7 +92,7 @@ test.describe(
       });
 
       // Provision the instance.
-      await aapProductCard.getByRole("button", { name: "Provision" }).click();
+      await aapProductCard.getByRole("button", { name: "Set up" }).click();
       await page
         .getByRole("dialog", { name: "Ansible Automation Platform" })
         .getByLabel("Close")
@@ -143,7 +143,7 @@ test.describe(
       });
 
       // Click on the "Provision" button and close the modal.
-      await aapProductCard.getByRole("button", { name: "Provision" }).click();
+      await aapProductCard.getByRole("button", { name: "Set up" }).click();
       await aapModal.getByLabel("Close").click();
 
       // Click on "Delete instance".
@@ -168,7 +168,7 @@ test.describe(
 
       // The card should return to the pre-instance state.
       await expect(
-        aapProductCard.getByRole("button", { name: "Provision" }),
+        aapProductCard.getByRole("button", { name: "Set up" }),
       ).toBeVisible();
       await expect(
         aapProductCard.getByRole("button", { name: "Delete instance" }),
@@ -185,7 +185,7 @@ test.describe(
         name: "Ansible Automation Platform",
       });
 
-      await aapProductCard.getByRole("button", { name: "Provision" }).click();
+      await aapProductCard.getByRole("button", { name: "Set up" }).click();
       await expect(aapModal).toBeVisible();
 
       await aapModal.getByLabel("Close").click();
@@ -247,7 +247,7 @@ test.describe(
 
       // The card should return to the pre-instance state.
       await expect(
-        aapProductCard.getByRole("button", { name: "Provision" }),
+        aapProductCard.getByRole("button", { name: "Set up" }),
       ).toBeVisible();
       await expect(
         aapProductCard.getByRole("button", { name: "Delete instance" }),
@@ -266,10 +266,10 @@ test.describe(
         name: "Ansible Automation Platform product card",
       });
 
-      // The card should show "Idled" label and "Reprovision" button.
-      await expect(aapProductCard.getByText("Idled")).toBeVisible();
+      // The card should show "Stopped" and a "Resume" button.
+      await expect(aapProductCard.getByText("Stopped")).toBeVisible();
       await expect(
-        aapProductCard.getByRole("button", { name: "Re-provision" }),
+        aapProductCard.getByRole("button", { name: "Resume", exact: true }),
       ).toBeVisible();
       await expect(
         aapProductCard.getByRole("button", { name: "Delete instance" }),
@@ -277,7 +277,7 @@ test.describe(
 
       // Reprovision the instance.
       await aapProductCard
-        .getByRole("button", { name: "Re-provision" })
+        .getByRole("button", { name: "Resume", exact: true })
         .click();
 
       // The provisioning modal should open.
@@ -287,9 +287,9 @@ test.describe(
       await expect(aapModal).toBeVisible();
       await aapModal.getByLabel("Close").click();
 
-      // The card should show "Provisioning" while the transition is in flight.
+      // The card should show "Resuming" while the transition is in flight.
       await expect(
-        aapProductCard.getByText("Provisioning", { exact: true }),
+        aapProductCard.getByText("Resuming", { exact: true }),
       ).toBeVisible();
 
       // Set the instance in a ready state.
@@ -322,7 +322,7 @@ test.describe(
       });
 
       // Verify the card is in idled state.
-      await expect(aapProductCard.getByText("Idled")).toBeVisible();
+      await expect(aapProductCard.getByText("Stopped")).toBeVisible();
 
       // Force the the reprovisioning to fail.
       await page.evaluate(() => {
@@ -331,19 +331,19 @@ test.describe(
 
       // Reprovision the instance.
       await aapProductCard
-        .getByRole("button", { name: "Re-provision" })
+        .getByRole("button", { name: "Resume", exact: true })
         .click();
 
       // The error toast should appear.
       await expect(
         page.getByRole("heading", {
           level: 4,
-          name: "Danger alert: Unable to reprovision",
+          name: "Danger alert: Unable to resume",
         }),
       ).toBeVisible();
 
       // Close the modal and verify that the card still shows as "idled".
-      await expect(aapProductCard.getByText("Idled")).toBeVisible();
+      await expect(aapProductCard.getByText("Stopped")).toBeVisible();
     });
 
     test("shows an error toast and failed card state when provisioning fails", async ({
@@ -353,7 +353,7 @@ test.describe(
         name: "Ansible Automation Platform product card",
       });
       // Provision the instance.
-      await aapProductCard.getByRole("button", { name: "Provision" }).click();
+      await aapProductCard.getByRole("button", { name: "Set up" }).click();
 
       // Close the provisioning modal.
       await page
@@ -372,14 +372,14 @@ test.describe(
       await expect(
         page.getByRole("heading", {
           level: 4,
-          name: "Danger alert: Unable to provision",
+          name: "Danger alert: Unable to set up",
         }),
       ).toBeVisible();
 
       // Verify the card shows the failed state.
       await expect(aapProductCard.getByText("Failed")).toBeVisible();
       await expect(
-        aapProductCard.getByRole("button", { name: "Provision" }),
+        aapProductCard.getByRole("button", { name: "Set up" }),
       ).toBeVisible();
       await expect(
         aapProductCard.getByRole("button", { name: "Delete instance" }),
@@ -405,7 +405,7 @@ test.describe(
       await expect(
         page.getByRole("heading", {
           level: 4,
-          name: "Danger alert: Ansible Automation Platform instance is not properly provisioned",
+          name: "Danger alert: Ansible Automation Platform instance is not properly set up",
         }),
       ).toBeVisible();
       await expect(
@@ -417,7 +417,7 @@ test.describe(
 
       // The card should show "Provision" and "Delete instance" buttons.
       await expect(
-        aapProductCard.getByRole("button", { name: "Provision" }),
+        aapProductCard.getByRole("button", { name: "Set up" }),
       ).toBeVisible();
       await expect(
         aapProductCard.getByRole("button", { name: "Delete instance" }),
@@ -439,7 +439,7 @@ test.describe(
       await expect(
         page.getByRole("heading", {
           level: 4,
-          name: "Danger alert: Ansible Automation Platform instance is not properly provisioned",
+          name: "Danger alert: Ansible Automation Platform instance is not properly set up",
         }),
       ).toBeVisible();
       await expect(
@@ -453,7 +453,7 @@ test.describe(
 
       await expect(aapProductCard.getByText("Failed")).toBeVisible();
       await expect(
-        aapProductCard.getByRole("button", { name: "Provision" }),
+        aapProductCard.getByRole("button", { name: "Set up" }),
       ).toBeVisible();
 
       // Error state does not poll. Advance the CR to READY first, as
@@ -467,7 +467,7 @@ test.describe(
 
       // Retrying a failed instance does not create a new CR, it just resumes
       // polling. The card still shows Failed until that poll completes.
-      await aapProductCard.getByRole("button", { name: "Provision" }).click();
+      await aapProductCard.getByRole("button", { name: "Set up" }).click();
 
       // Verify that the modal opens and that it shows the instance as
       // "provisioned".
@@ -479,7 +479,7 @@ test.describe(
       await expect(
         page.getByRole("heading", {
           level: 1,
-          name: "Ansible Automation Platform instance provisioned",
+          name: "Ansible Automation Platform instance is ready",
         }),
       ).toBeVisible();
       await expect(

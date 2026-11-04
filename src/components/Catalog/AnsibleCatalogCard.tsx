@@ -32,17 +32,19 @@ function getButtonLabel(status: AAPInstanceStatus): ButtonLabel {
     case "notDeployed":
     case "unknown":
     case "error":
-      return ButtonLabel.PROVISION;
+      return ButtonLabel.SET_UP;
 
     case "provisioning":
+      return ButtonLabel.SETTING_UP;
+
     case "unidling":
-      return ButtonLabel.PROVISIONING;
+      return ButtonLabel.RESUMING;
 
     case "ready":
       return ButtonLabel.LAUNCH;
 
     case "idled":
-      return ButtonLabel.REPROVISION;
+      return ButtonLabel.RESUME;
 
     case "deleting":
     case "deleted":
@@ -72,12 +74,13 @@ function getStatusLabel(status: AAPInstanceStatus): StatusLabel | undefined {
     case "initialFetch":
       return { label: "Loading", color: StatusColor.BLUE };
     case "provisioning":
+      return { label: "Setting up", color: StatusColor.BLUE };
     case "unidling":
-      return { label: "Provisioning", color: StatusColor.BLUE };
+      return { label: "Resuming", color: StatusColor.BLUE };
     case "ready":
       return { label: "Ready", color: StatusColor.GREEN };
     case "idled":
-      return { label: "Idled", color: StatusColor.ORANGE };
+      return { label: "Stopped", color: StatusColor.ORANGE };
     case "deleting":
     case "deleted":
       return { label: "Deleting", color: StatusColor.BLUE };
@@ -148,7 +151,8 @@ export function AnsibleCatalogCard({
     userSignupPhase === UserSignupPhase.INITIAL_FETCH;
   const isPrimaryButtonSpinnerVisible =
     buttonLabel === ButtonLabel.LOADING ||
-    buttonLabel === ButtonLabel.PROVISIONING ||
+    buttonLabel === ButtonLabel.SETTING_UP ||
+    buttonLabel === ButtonLabel.RESUMING ||
     buttonLabel === ButtonLabel.DELETING ||
     userSignupPhase === UserSignupPhase.INITIAL_FETCH;
   const isDeleteButtonVisible =
@@ -199,8 +203,8 @@ export function AnsibleCatalogCard({
             addAlertFromError(error);
           } else {
             const fallbackError = new UserFacingError(
-              "Unable to reprovision your instance",
-              `We were unable to reprovision your instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
+              "Unable to resume your instance",
+              `We were unable to resume your instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
               error,
               `${error}`,
             );
@@ -228,8 +232,8 @@ export function AnsibleCatalogCard({
           } else {
             setProvisioningError(
               new UserFacingError(
-                "Unable to provision your instance",
-                `We were unable to provision your instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
+                "Unable to set up your instance",
+                `We were unable to set up your instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
                 error,
                 `${error}`,
               ),

@@ -181,7 +181,7 @@ describe("AnsibleCatalogCard", () => {
       markProductAsTried,
     );
 
-    await userEvent.click(getPrimaryButton("Provision"));
+    await userEvent.click(getPrimaryButton("Set up"));
 
     expect(provisionInstance).toHaveBeenCalled();
     expect(markProductAsTried).toHaveBeenCalledWith(aapProduct);
@@ -236,17 +236,17 @@ describe("AnsibleCatalogCard", () => {
     const card = getCard();
     expect(card.textContent).toContain("Loading");
     expect(card.textContent).not.toContain("Ready");
-    expect(card.textContent).not.toContain("Provisioning");
-    expect(card.textContent).not.toContain("Idled");
+    expect(card.textContent).not.toContain("Setting up");
+    expect(card.textContent).not.toContain("Stopped");
     expect(card.textContent).not.toContain("Failed");
   });
 
-  it("shows 'Provision' button when instanceStatus is 'userNotReady'", () => {
+  it("shows 'Set up' button when instanceStatus is 'userNotReady'", () => {
     renderCard({}, { instanceStatus: { kind: "userNotReady" } });
 
-    const button = getPrimaryButton("Provision");
-    expect(button.textContent).toContain("Provision");
-    expect(button.textContent).not.toContain("Provisioning");
+    const button = getPrimaryButton("Set up");
+    expect(button.textContent).toContain("Set up");
+    expect(button.textContent).not.toContain("Setting up");
   });
 
   it("does not call provisionInstance or open modal when instanceStatus is 'userNotReady'", async () => {
@@ -259,7 +259,7 @@ describe("AnsibleCatalogCard", () => {
       markProductAsTried,
     );
 
-    await userEvent.click(getPrimaryButton("Provision"));
+    await userEvent.click(getPrimaryButton("Set up"));
 
     expect(provisionInstance).not.toHaveBeenCalled();
     expect(markProductAsTried).not.toHaveBeenCalled();
@@ -273,24 +273,24 @@ describe("AnsibleCatalogCard", () => {
 
     const card = getCard();
     expect(card.textContent).not.toContain("Ready");
-    expect(card.textContent).not.toContain("Provisioning");
-    expect(card.textContent).not.toContain("Idled");
+    expect(card.textContent).not.toContain("Setting up");
+    expect(card.textContent).not.toContain("Stopped");
     expect(card.textContent).not.toContain("Failed");
   });
 
-  it("shows 'Provision' button when instanceStatus is 'new'", () => {
+  it("shows 'Set up' button when instanceStatus is 'new'", () => {
     renderCard({}, { instanceStatus: { kind: "new" } });
 
-    const button = getPrimaryButton("Provision");
-    expect(button.textContent).toContain("Provision");
-    expect(button.textContent).not.toContain("Provisioning");
+    const button = getPrimaryButton("Set up");
+    expect(button.textContent).toContain("Set up");
+    expect(button.textContent).not.toContain("Setting up");
   });
 
-  it("shows 'Provisioning...' button when instanceStatus is 'provisioning'", () => {
+  it("shows 'Setting up...' button when instanceStatus is 'provisioning'", () => {
     renderCard({}, { instanceStatus: { kind: "provisioning" } });
 
-    expect(getPrimaryButton(/Provisioning/).textContent).toContain(
-      "Provisioning...",
+    expect(getPrimaryButton(/Setting up/).textContent).toContain(
+      "Setting up...",
     );
   });
 
@@ -300,12 +300,10 @@ describe("AnsibleCatalogCard", () => {
     expect(getPrimaryButton("Launch").textContent).toContain("Launch");
   });
 
-  it("shows 'Re-provision' button when instanceStatus is 'idled'", () => {
+  it("shows 'Resume' button when instanceStatus is 'idled'", () => {
     renderCard({}, { instanceStatus: { kind: "idled" } });
 
-    expect(getPrimaryButton("Re-provision").textContent).toContain(
-      "Re-provision",
-    );
+    expect(getPrimaryButton("Resume").textContent).toContain("Resume");
   });
 
   it("hides delete button when instanceStatus is 'new'", () => {
@@ -370,16 +368,16 @@ describe("AnsibleCatalogCard", () => {
     expect(getCard().textContent).toContain("Ready");
   });
 
-  it("renders 'Provisioning' status label when instanceStatus is 'provisioning'", () => {
+  it("renders 'Setting up' status label when instanceStatus is 'provisioning'", () => {
     renderCard({}, { instanceStatus: { kind: "provisioning" } });
 
-    expect(getCard().textContent).toContain("Provisioning");
+    expect(getCard().textContent).toContain("Setting up");
   });
 
-  it("renders 'Idled' status label when instanceStatus is 'idled'", () => {
+  it("renders 'Stopped' status label when instanceStatus is 'idled'", () => {
     renderCard({}, { instanceStatus: { kind: "idled" } });
 
-    expect(getCard().textContent).toContain("Idled");
+    expect(getCard().textContent).toContain("Stopped");
   });
 
   it("does not render a status label when instanceStatus is 'new'", () => {
@@ -387,20 +385,20 @@ describe("AnsibleCatalogCard", () => {
 
     const card = getCard();
     expect(card.textContent).not.toContain("Ready");
-    expect(card.textContent).not.toContain("Provisioning");
-    expect(card.textContent).not.toContain("Idled");
+    expect(card.textContent).not.toContain("Setting up");
+    expect(card.textContent).not.toContain("Stopped");
   });
 
-  it("shows 'Provision' button for 'notDeployed' status", () => {
+  it("shows 'Set up' button for 'notDeployed' status", () => {
     renderCard({}, { instanceStatus: { kind: "notDeployed" } });
 
-    expect(getPrimaryButton("Provision").textContent).toContain("Provision");
+    expect(getPrimaryButton("Set up").textContent).toContain("Set up");
   });
 
-  it("shows 'Provision' button for 'unknown' status", () => {
+  it("shows 'Set up' button for 'unknown' status", () => {
     renderCard({}, { instanceStatus: { kind: "unknown" } });
 
-    expect(getPrimaryButton("Provision").textContent).toContain("Provision");
+    expect(getPrimaryButton("Set up").textContent).toContain("Set up");
   });
 
   it("shows a generic alert when provisionInstance throws a non-UserFacingError", async () => {
@@ -410,14 +408,14 @@ describe("AnsibleCatalogCard", () => {
 
     renderCard({}, { provisionInstance, instanceStatus: { kind: "new" } });
 
-    await userEvent.click(getPrimaryButton("Provision"));
+    await userEvent.click(getPrimaryButton("Set up"));
 
     expect(provisionInstance).toHaveBeenCalled();
     expect(
-      screen.getByText("Unable to provision your instance"),
+      screen.getByText("Unable to set up your instance"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/We were unable to provision your instance/),
+      screen.getByText(/We were unable to set up your instance/),
     ).toBeInTheDocument();
   });
 
@@ -430,7 +428,7 @@ describe("AnsibleCatalogCard", () => {
 
     renderCard({}, { provisionInstance, instanceStatus: { kind: "new" } });
 
-    await userEvent.click(getPrimaryButton("Provision"));
+    await userEvent.click(getPrimaryButton("Set up"));
 
     expect(provisionInstance).toHaveBeenCalled();
     expect(screen.getByText("Provision failed")).toBeInTheDocument();
@@ -448,7 +446,7 @@ describe("AnsibleCatalogCard", () => {
 
     renderCard({}, { provisionInstance, instanceStatus: { kind: "new" } });
 
-    const button = getPrimaryButton("Provision");
+    const button = getPrimaryButton("Set up");
 
     await userEvent.click(button);
     await userEvent.click(button);
@@ -460,7 +458,7 @@ describe("AnsibleCatalogCard", () => {
     });
   });
 
-  it("shows 'Provision' button for 'error' status", () => {
+  it("shows 'Set up' button for 'error' status", () => {
     renderCard(
       {},
       {
@@ -471,7 +469,7 @@ describe("AnsibleCatalogCard", () => {
       },
     );
 
-    expect(getPrimaryButton("Provision").textContent).toContain("Provision");
+    expect(getPrimaryButton("Set up").textContent).toContain("Set up");
   });
 
   it("shows delete button when instanceStatus is 'error'", () => {
@@ -504,12 +502,10 @@ describe("AnsibleCatalogCard", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows 'Provisioning...' button for 'unidling' status", () => {
+  it("shows 'Resuming...' button for 'unidling' status", () => {
     renderCard({}, { instanceStatus: { kind: "unidling" } });
 
-    expect(getPrimaryButton(/Provisioning/).textContent).toContain(
-      "Provisioning...",
-    );
+    expect(getPrimaryButton(/Resuming/).textContent).toContain("Resuming...");
   });
 
   it("shows delete button when instanceStatus is 'unidling'", () => {
@@ -528,7 +524,7 @@ describe("AnsibleCatalogCard", () => {
       { provisionInstance, instanceStatus: { kind: "provisioning" } },
     );
 
-    await userEvent.click(getPrimaryButton(/Provisioning/));
+    await userEvent.click(getPrimaryButton(/Setting up/));
 
     expect(provisionInstance).not.toHaveBeenCalled();
     expect(
@@ -541,7 +537,7 @@ describe("AnsibleCatalogCard", () => {
 
     renderCard({}, { unidleInstance, instanceStatus: { kind: "unidling" } });
 
-    await userEvent.click(getPrimaryButton(/Provisioning/));
+    await userEvent.click(getPrimaryButton(/Resuming/));
 
     expect(unidleInstance).not.toHaveBeenCalled();
     expect(
@@ -558,7 +554,7 @@ describe("AnsibleCatalogCard", () => {
 
     renderCard({}, { unidleInstance, instanceStatus: { kind: "idled" } });
 
-    await userEvent.click(getPrimaryButton("Re-provision"));
+    await userEvent.click(getPrimaryButton("Resume"));
 
     expect(unidleInstance).toHaveBeenCalled();
     expect(screen.getByText("Reprovision failed")).toBeInTheDocument();
@@ -572,14 +568,14 @@ describe("AnsibleCatalogCard", () => {
 
     renderCard({}, { unidleInstance, instanceStatus: { kind: "idled" } });
 
-    await userEvent.click(getPrimaryButton("Re-provision"));
+    await userEvent.click(getPrimaryButton("Resume"));
 
     expect(unidleInstance).toHaveBeenCalled();
     expect(
-      screen.getByText("Unable to reprovision your instance"),
+      screen.getByText("Unable to resume your instance"),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/We were unable to reprovision your instance/),
+      screen.getByText(/We were unable to resume your instance/),
     ).toBeInTheDocument();
   });
 
@@ -613,10 +609,10 @@ describe("AnsibleCatalogCard", () => {
     expect(getCard().textContent).toContain("Deleting");
   });
 
-  it("renders 'Provisioning' status label for 'unidling' status", () => {
+  it("renders 'Resuming' status label for 'unidling' status", () => {
     renderCard({}, { instanceStatus: { kind: "unidling" } });
 
-    expect(getCard().textContent).toContain("Provisioning");
+    expect(getCard().textContent).toContain("Resuming");
   });
 
   it("calls deleteInstance when delete is confirmed and dismisses the modal", async () => {
@@ -780,6 +776,6 @@ describe("AnsibleCatalogCard", () => {
 
     // The spinner is shown, making the accessible name include
     // "Loading...".
-    expect(getPrimaryButton(/Provision/)).toBeDisabled();
+    expect(getPrimaryButton(/Set up/)).toBeDisabled();
   });
 });

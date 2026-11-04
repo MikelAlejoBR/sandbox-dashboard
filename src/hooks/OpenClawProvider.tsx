@@ -356,8 +356,8 @@ export function OpenClawProviderConnected({
         }
 
         throw new UserFacingError(
-          "Unable to provision your OpenClaw instance",
-          `We were unable to provision your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
+          "Unable to set up your OpenClaw instance",
+          `We were unable to set up your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
           error,
           technicalDetails,
         );
@@ -403,8 +403,8 @@ export function OpenClawProviderConnected({
       provisioningSettings.current = undefined;
       setProvisioningError(
         new UserFacingError(
-          "Unable to provision your OpenClaw instance",
-          `Unfortunately we were unable to provision your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
+          "Unable to set up your OpenClaw instance",
+          `Unfortunately we were unable to set up your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}.`,
           error,
           technicalErrorDetails,
         ),
@@ -518,8 +518,8 @@ export function OpenClawProviderConnected({
     }
 
     throw new UserFacingError(
-      "Unable to reprovision your OpenClaw instance",
-      `We were unable to reprovision your OpenClaw instance. Please try again later, and if the issue persists, contact ${SUPPORT_EMAIL}`,
+      "Unable to resume your OpenClaw instance",
+      `We were unable to resume your OpenClaw instance. Please try again later, and if the issue persists, contact ${SUPPORT_EMAIL}`,
       cause,
       technicalDetails,
     );
@@ -628,6 +628,16 @@ export function OpenClawProviderConnected({
 
     let cancelled = false;
     const poll = async () => {
+      // Polling covers both first-time setup and waking a stopped
+      // instance. The message has to match whichever one is in progress.
+      const isResuming = statusRef.current === OpenClawStatus.UNIDLING;
+      const actionTitle = isResuming
+        ? "Unable to resume your OpenClaw instance"
+        : "Unable to set up your OpenClaw instance";
+      const actionDetail = isResuming
+        ? `We were unable to resume your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`
+        : `We were unable to set up your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`;
+
       try {
         await refreshInstanceStatus();
         pollTransientRetriesLeft.current = maxTransientErrorRetries;
@@ -635,8 +645,8 @@ export function OpenClawProviderConnected({
         if (error instanceof ProvisioningError) {
           setProvisioningError(
             new UserFacingError(
-              "Unable to provision your OpenClaw instance",
-              `We were unable to provision your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
+              actionTitle,
+              actionDetail,
               error,
               error.getFormattedErrorMessage(),
             ),
@@ -674,8 +684,8 @@ export function OpenClawProviderConnected({
           } else {
             setProvisioningError(
               new UserFacingError(
-                "Unable to provision your OpenClaw instance",
-                `We were unable to provision your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
+                actionTitle,
+                actionDetail,
                 error,
                 technicalDetails,
               ),
@@ -712,8 +722,8 @@ export function OpenClawProviderConnected({
             updateInstanceStatus(OpenClawStatus.FAILED);
             setProvisioningError(
               new UserFacingError(
-                "Unable to provision your OpenClaw instance",
-                `We were unable to provision your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
+                "Unable to set up your OpenClaw instance",
+                `We were unable to set up your OpenClaw instance. Please try again later, and if the issue persists, please contact ${SUPPORT_EMAIL}`,
                 error,
                 `${error}`,
               ),

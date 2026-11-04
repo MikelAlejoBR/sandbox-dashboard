@@ -111,11 +111,14 @@ export function AnsibleLaunchInfoModal({
 
   // Helper variables for determining when we should fetch the instance's
   // credentials and which content we should be showing to the user.
-  const isInstanceBeingProvisioned: boolean =
-    instanceStatus.kind === "provisioning" ||
-    instanceStatus.kind === "new" ||
-    instanceStatus.kind === "idled";
-  const isInstanceBeingUnidled: boolean = instanceStatus.kind === "unidling";
+  const isInstanceBeingSetUp: boolean =
+    instanceStatus.kind === "provisioning" || instanceStatus.kind === "new";
+  const isInstanceResuming: boolean =
+    instanceStatus.kind === "idled" || instanceStatus.kind === "unidling";
+  const actionTitle =
+    instanceStatus.kind === "idled" || instanceStatus.kind === "unidling"
+      ? "Resume AAP instance"
+      : "Set up AAP instance";
   const isInstanceReady =
     instanceStatus.kind === "ready" &&
     instanceCredentialsStatus.kind === "ready";
@@ -219,7 +222,7 @@ export function AnsibleLaunchInfoModal({
       </FlexItem>
       <FlexItem>
         <span style={{ fontSize: "24px", fontWeight: 700 }}>
-          Ansible Automation Platform instance provisioned
+          Ansible Automation Platform instance is ready
         </span>
       </FlexItem>
     </Flex>
@@ -231,7 +234,7 @@ export function AnsibleLaunchInfoModal({
   if (provisioningError) {
     return (
       <ErrorModal
-        headerTitle="Provision AAP instance"
+        headerTitle={actionTitle}
         productName="ansible-automation-platform"
         alertTitle={provisioningError.title}
         alertText={provisioningError.detail}
@@ -246,10 +249,10 @@ export function AnsibleLaunchInfoModal({
   if (instanceCredentialsStatus.kind === "error") {
     return (
       <ErrorModal
-        headerTitle="Provision AAP instance"
+        headerTitle="Set up AAP instance"
         productName="ansible-automation-platform"
         alertTitle="Unable to obtain the credentials for your instance"
-        alertText={`Your instance has been provisioned, but an error occurred while attempting to fetch your instance's credentials. Please try again later and if the issue persists, please contact ${SUPPORT_EMAIL}.`}
+        alertText={`Your instance is ready, but an error occurred while attempting to fetch your instance's credentials. Please try again later and if the issue persists, please contact ${SUPPORT_EMAIL}.`}
         copyableTechnicalDetails={instanceCredentialsStatus.errorMessage}
         isErrorModalOpen={isOpen}
         onErrorModalClose={() => {
@@ -270,13 +273,13 @@ export function AnsibleLaunchInfoModal({
     >
       <ModalHeader title={titleContent} />
       <ModalBody>
-        {isInstanceBeingProvisioned && (
+        {isInstanceBeingSetUp && (
           <div style={{ textAlign: "center", padding: "32px 0" }}>
             <Spinner size="lg" />
             <Content component="p" style={{ marginTop: "16px" }}>
-              Your Ansible Automation Platform instance is being provisioned.
-              This can take up to 50 minutes. You can close this dialog and come
-              back later.
+              Your Ansible Automation Platform instance is being set up. This
+              can take up to 50 minutes. You can close this dialog and come back
+              later.
             </Content>
           </div>
         )}
@@ -284,16 +287,16 @@ export function AnsibleLaunchInfoModal({
           <div style={{ textAlign: "center", padding: "32px 0" }}>
             <Spinner size="lg" />
             <Content component="p" style={{ marginTop: "16px" }}>
-              We are obtaining your provisioned instance's credentials. Please
-              wait a few seconds.
+              We are obtaining your instance's credentials. Please wait a few
+              seconds.
             </Content>
           </div>
         )}
-        {isInstanceBeingUnidled && (
+        {isInstanceResuming && (
           <div style={{ textAlign: "center", padding: "32px 0" }}>
             <Spinner size="lg" />
             <Content component="p" style={{ marginTop: "16px" }}>
-              Your instance is being reprovisioned. Please wait a few seconds.
+              Your instance is resuming. Please wait a few seconds.
             </Content>
           </div>
         )}
